@@ -1,0 +1,18 @@
+.hero-word {
+  transform: translateY(100%);
+}
+.hero-badge,
+.hero-desc,
+.hero-cta,
+.hero-stats {
+  transform: translateY(12px);
+}
+
+/* keep heavy effects static, only move transforms */
+.horizontal-track {
+  will-change: transform;
+}
+.logo-hit {
+  /* invisible layer to drag */
+  background: transparent;
+}

@@ -1,0 +1,181 @@
+<div class="landing-page">
+
+  <!-- HERO SECTION -->
+  <section class="hero-section">
+    <div class="hero-container">
+
+      <!-- Badge -->
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        Live: 12,450 events happening now
+      </div>
+
+      <!-- Main Title (Character-by-character for animation) -->
+      <h1 class="hero-title">
+        <div class="title-line">
+          <span class="hero-char">D</span>
+          <span class="hero-char">i</span>
+          <span class="hero-char">s</span>
+          <span class="hero-char">c</span>
+          <span class="hero-char">o</span>
+          <span class="hero-char">v</span>
+          <span class="hero-char">e</span>
+          <span class="hero-char">r</span>
+        </div>
+        <div class="title-line gradient-text">
+          <span class="hero-char">E</span>
+          <span class="hero-char">x</span>
+          <span class="hero-char">p</span>
+          <span class="hero-char">e</span>
+          <span class="hero-char">r</span>
+          <span class="hero-char">i</span>
+          <span class="hero-char">e</span>
+          <span class="hero-char">n</span>
+          <span class="hero-char">c</span>
+          <span class="hero-char">e</span>
+          <span class="hero-char">s</span>
+        </div>
+        <div class="title-line">
+          <span class="hero-char">W</span>
+          <span class="hero-char">o</span>
+          <span class="hero-char">r</span>
+          <span class="hero-char">t</span>
+          <span class="hero-char">h</span>
+          <span class="hero-char"> </span>
+          <span class="hero-char">L</span>
+          <span class="hero-char">i</span>
+          <span class="hero-char">v</span>
+          <span class="hero-char">i</span>
+          <span class="hero-char">n</span>
+          <span class="hero-char">g</span>
+        </div>
+      </h1>
+
+      <p class="hero-subtitle">
+        From concerts to conferences, find events that match your vibe.
+        Book instantly with zero hassle.
+      </p>
+
+      <div class="hero-cta">
+        <button class="btn-primary">
+          <span>Explore Events</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="btn-secondary">
+          Watch how it works
+        </button>
+      </div>
+    </div>
+
+    <!-- Decorative Background Elements -->
+    <div class="hero-bg">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+  </section>
+
+  <!-- SUGGESTED FOR YOU SECTION -->
+  <section class="suggested-section">
+    <div class="container">
+      <h2 class="section-title">Suggested For You</h2>
+      <p class="section-subtitle">Based on your interests and past attendance</p>
+
+      <div class="suggested-grid">
+        <div class="suggested-card" *ngFor="let event of suggestedEvents">
+          <div class="card-image" [style.background]="event.image">
+            <div class="card-overlay">
+              <span class="event-price">{{event.price}}</span>
+            </div>
+          </div>
+          <div class="card-content">
+            <h3>{{event.title}}</h3>
+            <div class="card-meta">
+              <span class="meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                {{event.date}}
+              </span>
+              <span class="meta-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 13.43C13.7231 13.43 15.12 12.0331 15.12 10.31C15.12 8.58687 13.7231 7.19 12 7.19C10.2769 7.19 8.88 8.58687 8.88 10.31C8.88 12.0331 10.2769 13.43 12 13.43Z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M3.62 8.49C5.59 -0.169998 18.42 -0.159997 20.38 8.5C21.53 13.58 18.37 17.88 15.6 20.54C13.59 22.48 10.41 22.48 8.39 20.54C5.63 17.88 2.47 13.57 3.62 8.49Z" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                {{event.location}}
+              </span>
+            </div>
+            <div class="card-footer">
+              <div class="attendees">
+                <div class="attendee-avatars">
+                  <span class="avatar"></span>
+                  <span class="avatar"></span>
+                  <span class="avatar"></span>
+                </div>
+                <span class="attendee-count">+{{event.attendees}} going</span>
+              </div>
+              <button class="btn-card">Book Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVENTS NEAR YOU SECTION -->
+  <section class="nearby-section">
+    <div class="container">
+      <h2 class="section-title">Events Near You</h2>
+      <p class="section-subtitle">Happening in your area this week</p>
+
+      <div class="nearby-scroll">
+        <div class="nearby-card" *ngFor="let event of nearbyEvents">
+          <div class="nearby-image" [style.background]="event.image">
+            <div class="distance-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 13.43C13.7231 13.43 15.12 12.0331 15.12 10.31C15.12 8.58687 13.7231 7.19 12 7.19C10.2769 7.19 8.88 8.58687 8.88 10.31C8.88 12.0331 10.2769 13.43 12 13.43Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              {{event.distance}} away
+            </div>
+          </div>
+          <div class="nearby-content">
+            <h3>{{event.title}}</h3>
+            <span class="nearby-date">{{event.date}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROWSE BY CATEGORY SECTION -->
+  <section class="categories-section">
+    <div class="container">
+      <h2 class="section-title">Browse by Category</h2>
+      <p class="section-subtitle">Find what moves you</p>
+
+      <div class="categories-grid">
+        <div class="category-pill"
+             *ngFor="let cat of categories"
+             [style.background]="cat.color">
+          <span class="cat-icon">{{cat.icon}}</span>
+          <div class="cat-text">
+            <h4>{{cat.name}}</h4>
+            <span class="cat-count">{{cat.events}} events</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <section class="footer-cta">
+    <div class="cta-content">
+      <h2>Ready to discover your next adventure?</h2>
+      <p>Join 500,000+ people finding events they love</p>
+      <button class="btn-primary large">Get Started Free</button>
+    </div>
+  </section>
+
+</div>

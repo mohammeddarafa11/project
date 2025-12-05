@@ -1,0 +1,108 @@
+<nav class="flex items-center justify-between p-5 lg:w-[80%] lg:mx-auto">
+  <!-- Logo -->
+  <div class="flex items-center space-x-2">
+    <span class="text-xl font-bold">Eventora</span>
+  </div>
+
+  <!-- Desktop Navigation (hidden on mobile) -->
+  <div class="hidden md:flex items-center space-x-1">
+    <!-- Products Menu -->
+    <div class="relative">
+      <button z-button zType="ghost" z-menu zTrigger="hover" [zMenuTriggerFor]="productsMenu">
+        Products
+        <fa-icon [icon]="faChevronDown" class="ml-1 text-xs"></fa-icon>
+      </button>
+      <ng-template #productsMenu>
+        <div z-menu-content class="w-48">
+          <button z-menu-item (click)="log('Analytics')">Analytics</button>
+          <button z-menu-item (click)="log('Dashboard')">Dashboard</button>
+          <button z-menu-item (click)="log('Reports')">Reports</button>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Solutions Menu -->
+    <div class="relative">
+      <button z-button zType="ghost" z-menu zTrigger="hover" [zMenuTriggerFor]="solutionsMenu">
+        Solutions
+        <fa-icon [icon]="faChevronDown" class="ml-1 text-xs"></fa-icon>
+      </button>
+      <ng-template #solutionsMenu>
+        <div z-menu-content class="w-48">
+          <button z-menu-item (click)="log('For Startups')">For Startups</button>
+          <button z-menu-item (click)="log('For Enterprise')">For Enterprise</button>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Resources Menu -->
+    <div class="relative">
+      <button z-button zType="ghost" z-menu zTrigger="hover" [zMenuTriggerFor]="resourcesMenu">
+        Resources
+        <fa-icon [icon]="faChevronDown" class="ml-1 text-xs"></fa-icon>
+      </button>
+      <ng-template #resourcesMenu>
+        <div z-menu-content class="w-48">
+          <button z-menu-item (click)="log('Blog')">Blog</button>
+          <button z-menu-item (click)="log('Documentation')">Documentation</button>
+          <button z-menu-item (click)="log('Community')">Community</button>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Right Side -->
+  <div class="flex items-center space-x-2">
+    <!-- Theme Toggle -->
+    <button
+      z-button
+      zType="ghost"
+      (click)="toggleTheme()"
+      [attr.aria-label]="getCurrentTheme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
+      <fa-icon [icon]="getCurrentTheme() === 'dark' ? faSun : faMoon"></fa-icon>
+    </button>
+
+    <!-- Desktop CTA -->
+    <button z-button zType="default" class="hidden md:inline-flex" (click)="openGetStartedDialog()">
+      Get Started
+    </button>
+
+    <!-- Mobile Burger Menu -->
+    <button
+      z-button
+      zType="ghost"
+      class="md:hidden"
+      z-menu
+      zTrigger="click"
+      [zMenuTriggerFor]="mobileNavMenu"
+      aria-label="Open menu"
+    >
+      <fa-icon [icon]="faBars"></fa-icon>
+    </button>
+
+    <!-- Mobile Dropdown Menu -->
+    <ng-template #mobileNavMenu>
+      <div z-menu-content class="w-56">
+        <div class="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Navigation</div>
+        <z-divider zSpacing="sm" />
+        <button z-menu-item (click)="log('Analytics')">Analytics</button>
+        <button z-menu-item (click)="log('Dashboard')">Dashboard</button>
+        <button z-menu-item (click)="log('Reports')">Reports</button>
+        <z-divider zSpacing="sm" />
+        <div class="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Solutions</div>
+        <button z-menu-item (click)="log('For Startups')">For Startups</button>
+        <button z-menu-item (click)="log('For Enterprise')">For Enterprise</button>
+        <z-divider zSpacing="sm" />
+        <div class="px-2 py-1.5 text-sm font-semibold text-muted-foreground">Resources</div>
+        <button z-menu-item (click)="log('Blog')">Blog</button>
+        <button z-menu-item (click)="log('Documentation')">Documentation</button>
+        <button z-menu-item (click)="log('Community')">Community</button>
+        <z-divider zSpacing="sm" />
+        <button z-menu-item (click)="openGetStartedDialog()" class="font-medium">
+          Get Started
+        </button>
+      </div>
+    </ng-template>
+  </div>
+</nav>
