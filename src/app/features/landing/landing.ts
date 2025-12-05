@@ -5,13 +5,13 @@ import {
   OnDestroy,
   inject,
   PLATFORM_ID,
-  ViewChild,
-  ElementRef,
+  AfterViewChecked, // Added
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
+// Assuming these imports exist in your project structure
 import { LandingNavbar } from '@core/layout/landing-navbar/landing-navbar';
 import { DarkModeService } from '@core/services/darkmode.service';
 import { ZardDialogService } from '@shared/components/dialog/dialog.service';
@@ -36,8 +36,10 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
     <div
       class="main-container bg-white dark:bg-black text-gray-900 dark:text-white overflow-x-hidden transition-colors duration-300"
     >
+      <!-- NAVBAR: Must be eager loading -->
       <app-landing-navbar class="fixed top-0 w-full z-50"></app-landing-navbar>
 
+      <!-- HERO SECTION: Must be eager loading -->
       <section
         class="hero-section relative min-h-screen flex items-center justify-center px-6 pt-20 overflow-hidden"
       >
@@ -127,6 +129,8 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
         </div>
       </section>
 
+      <!-- FEATURED EVENTS SECTION (@defer on viewport) -->
+      @defer (on viewport) {
       <section class="featured-section py-32 px-6">
         <div class="max-w-7xl mx-auto">
           <div class="section-header mb-20">
@@ -198,7 +202,16 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
           </div>
         </div>
       </section>
+      } @placeholder {
+      <div
+        class="h-[600px] w-full flex items-center justify-center text-gray-500"
+      >
+        Loading Featured Events...
+      </div>
+      }
 
+      <!-- HORIZONTAL NEARBY GEMS SECTION (@defer on viewport) -->
+      @defer (on viewport) {
       <section
         class="horizontal-wrapper relative h-screen bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden flex flex-col justify-center"
       >
@@ -279,7 +292,16 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
           <div class="w-[10vw] shrink-0"></div>
         </div>
       </section>
+      } @placeholder {
+      <div
+        class="h-screen bg-gray-50 dark:bg-[#0a0a0a] flex items-center justify-center text-gray-500"
+      >
+        Preparing Nearby Gems Map...
+      </div>
+      }
 
+      <!-- CTA SECTION and FOOTER (@defer on viewport) -->
+      @defer (on viewport) {
       <!-- CTA SECTION - BLACK & WHITE ONLY -->
       <section
         class="cta-section relative py-40 px-6 flex items-center justify-center overflow-hidden"
@@ -309,6 +331,43 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
         </div>
       </section>
 
+      <!-- FOOTER - BLACK & WHITE ONLY -->
+      <footer
+        class="border-t border-gray-200 dark:border-white/10 bg-white dark:bg-black text-gray-900 dark:text-white text-xs md:text-sm"
+      >
+        <div
+          class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3"
+        >
+          <span class="font-bold text-black dark:text-white">
+            © {{ currentYear }} EventOS. All rights reserved.
+          </span>
+          <div class="flex gap-6 text-xs font-medium">
+            <a
+              href="#"
+              class="hover:underline text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+              >Terms</a
+            >
+            <a
+              href="#"
+              class="hover:underline text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+              >Privacy</a
+            >
+            <a
+              href="#"
+              class="hover:underline text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+              >Support</a
+            >
+          </div>
+        </div>
+      </footer>
+
+      } @placeholder {
+      <div
+        class="h-[200px] w-full flex items-center justify-center text-gray-500"
+      >
+        Loading Call-to-Action...
+      </div>
+      }
     </div>
   `,
   styles: [
@@ -340,15 +399,22 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
     `,
   ],
 })
-export class LandingComponent implements AfterViewInit, OnInit, OnDestroy {
+export class LandingComponent
+  implements AfterViewInit, OnInit, OnDestroy, AfterViewChecked
+{
+  // Added AfterViewChecked
   private readonly darkmodeService = inject(DarkModeService);
   private readonly dialogService = inject(ZardDialogService);
   private readonly platformId = inject(PLATFORM_ID);
 
-  // Placeholder for user login status (would come from an Auth service)
   isUserLoggedIn: boolean = false;
 
   private ctx?: gsap.Context;
+
+  // Initialization flags to track which deferred sections have had their GSAP code run
+  private featuredInitialized = false;
+  private horizontalInitialized = false;
+  private ctaInitialized = false;
 
   faArrowRight = faArrowRight;
   faCalendar = faCalendar;
@@ -416,20 +482,13 @@ export class LandingComponent implements AfterViewInit, OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
-    // Initializes the theme based on system preference or saved setting
     this.darkmodeService.initTheme();
-    // In a real app, you would check auth status here
-    // this.isUserLoggedIn = this.authService.isLoggedIn();
   }
 
-  // Handles click for "Start Hosting" and "Create Event" buttons
   handleHostEventClick(): void {
     if (this.isUserLoggedIn) {
-      // Redirect to event creation dashboard if logged in (Placeholder)
-      // this.router.navigate(['/dashboard/create-event']);
       console.log('User is logged in, redirecting to event creation.');
     } else {
-      // Open auth dialog if not logged in
       this.dialogService.create({
         zContent: AuthDialog,
         zWidth: '425px',
@@ -438,6 +497,7 @@ export class LandingComponent implements AfterViewInit, OnInit, OnDestroy {
     }
   }
 
+  // Eagerly loaded animations for the Hero section (runs once after initial view)
   ngAfterViewInit() {
     if (!isPlatformBrowser(this.platformId)) return;
 
@@ -472,77 +532,140 @@ export class LandingComponent implements AfterViewInit, OnInit, OnDestroy {
           ease: 'power1.out',
         });
       });
-
-      // 3. FEATURED CARDS (Staggered Reveal)
-      ScrollTrigger.batch('.event-card', {
-        start: 'top 85%',
-        onEnter: (batch) =>
-          gsap.to(batch, {
-            opacity: 1,
-            y: 0,
-            stagger: 0.15,
-            duration: 0.8,
-            ease: 'back.out(1.7)',
-          }),
-        once: true,
-      });
-
-      // 4. SECTION HEADER REVEAL
-      gsap.to('.section-title', {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        scrollTrigger: {
-          trigger: '.featured-section',
-          start: 'top 70%',
-          once: true,
-        },
-      });
-
-      // 5. HORIZONTAL SCROLL (The "Pin" Effect)
-      const track = document.querySelector(
-        '.horizontal-track'
-      ) as HTMLElement | null;
-      const sections = gsap.utils.toArray('.nearby-card');
-
-      if (track && sections.length > 1) {
-        const scrollDistance = track.scrollWidth - window.innerWidth;
-        gsap.to(track, {
-          x: -scrollDistance,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: '.horizontal-wrapper',
-            pin: true,
-            scrub: 1,
-            snap: 1 / (sections.length - 1),
-            end: () => '+=' + track.scrollWidth,
-          },
-        });
-      }
-
-      // 6. FOOTER CTA (Reveal Effect)
-      const ctaTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: '.cta-section',
-          start: 'top 70%',
-          toggleActions: 'play none none reverse',
-          once: true,
-        },
-      });
-
-      ctaTl
-        .to('.cta-bg', { scaleY: 1, duration: 0.8, ease: 'power4.inOut' })
-        .to('.cta-title', { opacity: 1, y: 0, duration: 0.6 }, '-=0.3')
-        .to('.cta-text', { opacity: 1, y: 0, duration: 0.6 }, '-=0.4')
-        .to(
-          '.cta-btn',
-          { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)' },
-          '-=0.3'
-        );
     });
   }
 
+  /**
+   * Checks if deferred content is loaded and initializes GSAP for that section.
+   * Runs frequently, so checks must be efficient.
+   */
+  ngAfterViewChecked(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    // 1. Check Featured Section
+    if (!this.featuredInitialized) {
+      const featuredElement = document.querySelector('.featured-section');
+      if (featuredElement) {
+        this.initFeaturedAnimations();
+        this.featuredInitialized = true;
+      }
+    }
+
+    // 2. Check Horizontal Scroll Section
+    if (!this.horizontalInitialized) {
+      const horizontalElement = document.querySelector('.horizontal-wrapper');
+      if (horizontalElement) {
+        this.initHorizontalScroll();
+        this.horizontalInitialized = true;
+      }
+    }
+
+    // 3. Check CTA Section
+    if (!this.ctaInitialized) {
+      const ctaElement = document.querySelector('.cta-section');
+      if (ctaElement) {
+        this.initCtaAnimation();
+        this.ctaInitialized = true;
+      }
+    }
+  }
+
+  // --- GSAP Initialization Methods (Called after DOM check) ---
+
+  /**
+   * Initializes GSAP animations for the Featured Events section.
+   */
+  initFeaturedAnimations() {
+    console.log(
+      'GSAP: Initializing Featured Animations (Deferred content loaded).'
+    );
+    // 3. FEATURED CARDS (Staggered Reveal)
+    ScrollTrigger.batch('.event-card', {
+      start: 'top 85%',
+      onEnter: (batch) =>
+        gsap.to(batch, {
+          opacity: 1,
+          y: 0,
+          stagger: 0.15,
+          duration: 0.8,
+          ease: 'back.out(1.7)',
+        }),
+      once: true,
+    });
+
+    // 4. SECTION HEADER REVEAL
+    gsap.to('.section-title', {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      scrollTrigger: {
+        trigger: '.featured-section',
+        start: 'top 70%',
+        once: true,
+      },
+    });
+  }
+
+  /**
+   * Initializes GSAP animations for the Horizontal Scroll section.
+   */
+  initHorizontalScroll() {
+    console.log(
+      'GSAP: Initializing Horizontal Scroll (Deferred content loaded).'
+    );
+    // 5. HORIZONTAL SCROLL (The "Pin" Effect)
+    const track = document.querySelector(
+      '.horizontal-track'
+    ) as HTMLElement | null;
+    const sections = gsap.utils.toArray('.nearby-card');
+
+    if (track && sections.length > 1) {
+      // Calculate scroll distance based on the width of all cards plus gaps
+      const scrollDistance = track.scrollWidth - window.innerWidth;
+      gsap.to(track, {
+        x: -scrollDistance,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '.horizontal-wrapper',
+          pin: true,
+          scrub: 1,
+          snap: 1 / (sections.length - 1),
+          end: () => '+=' + track.scrollWidth,
+        },
+      });
+    }
+  }
+
+  /**
+   * Initializes GSAP animations for the CTA section.
+   */
+  initCtaAnimation() {
+    console.log('GSAP: Initializing CTA Animation (Deferred content loaded).');
+    // 6. FOOTER CTA (Reveal Effect)
+    const ctaTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: '.cta-section',
+        start: 'top 70%',
+        toggleActions: 'play none none reverse',
+        once: true,
+      },
+    });
+
+    ctaTl
+      .to('.cta-bg', { scaleY: 1, duration: 0.8, ease: 'power4.inOut' })
+      .to('.cta-title', { opacity: 1, y: 0, duration: 0.6 }, '-=0.3')
+      .to('.cta-text', { opacity: 1, y: 0, duration: 0.6 }, '-=0.4')
+      .to(
+        '.cta-btn',
+        { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)' },
+        '-=0.3'
+      );
+  }
+
   ngOnDestroy() {
+    // Revert the main GSAP context (for hero/blobs)
     this.ctx?.revert();
+    // Kill all ScrollTriggers created in the defer blocks to prevent memory leaks
+    ScrollTrigger.getAll().forEach((st) => st.kill());
   }
 }

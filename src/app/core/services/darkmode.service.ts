@@ -8,107 +8,116 @@ export enum EThemeModes {
 }
 export type ThemeOptions = EThemeModes.LIGHT | EThemeModes.DARK | EThemeModes.SYSTEM;
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class DarkModeService implements OnDestroy {
   private readonly document = inject(DOCUMENT);
-  private handleThemeChange = (event: MediaQueryListEvent) => this.updateMode(event.matches);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  private readonly themeSignal = signal<ThemeOptions>(EThemeModes.SYSTEM);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
+
+  private themeSignal = signal<ThemeOptions>(EThemeModes.SYSTEM);
   private darkModeQuery?: MediaQueryList;
+  private handleThemeChange = (event: MediaQueryListEvent) => this.updateMode(event.matches);
 
   readonly theme = computed(() => this.themeSignal());
+
+  constructor() {
+    // Initialize immediately during construction (SSR-safe)
+    if (this.isBrowser) {
+      this.initTheme();
+    }
+  }
 
   ngOnDestroy(): void {
     this.handleSystemChanges(false);
   }
 
   initTheme(): void {
-    if (!this.isBrowser) {
-      return;
-    }
+    if (!this.isBrowser) return;
 
-    this.applyTheme(this.getStoredTheme() ?? EThemeModes.SYSTEM);
+    const stored = this.getStoredTheme();
+    this.applyTheme(stored ?? EThemeModes.SYSTEM);
   }
 
   toggleTheme(): void {
-    const currentTheme = this.getCurrentTheme();
-    if (!this.isBrowser || currentTheme === EThemeModes.SYSTEM) {
-      return;
-    }
+    if (!this.isBrowser) return;
 
-    this.applyTheme(currentTheme === EThemeModes.DARK ? EThemeModes.LIGHT : EThemeModes.DARK);
-  }
+    const current = this.getCurrentTheme();
+    if (current === EThemeModes.SYSTEM) return;
 
-  activateTheme(theme: ThemeOptions): void {
-    if (!this.isBrowser) {
-      return;
-    }
-
-    this.applyTheme(theme);
-  }
-
-  getCurrentTheme(): ThemeOptions {
-    return this.themeSignal();
+    this.applyTheme(current === EThemeModes.DARK ? EThemeModes.LIGHT : EThemeModes.DARK);
   }
 
   private applyTheme(theme: ThemeOptions): void {
-    if (!this.isBrowser) {
-      return;
-    }
+    if (!this.isBrowser) return;
 
-    localStorage['theme'] = theme;
+    localStorage.setItem('theme', theme); // Use setItem (SSR-safe after isBrowser)
     this.themeSignal.set(theme);
-    // whenever we apply theme call listener removal
     this.handleSystemChanges(false);
 
     this.darkModeQuery ??= this.getDarkModeQuery();
     this.updateMode(this.isDarkMode());
+
     if (theme === EThemeModes.SYSTEM) {
       this.handleSystemChanges(true);
     }
   }
 
+  // SSR-SAFE: No localStorage access without browser check
   private getStoredTheme(): ThemeOptions | undefined {
-    const value = localStorage['theme'];
-    if (value === EThemeModes.LIGHT || value === EThemeModes.DARK || value === EThemeModes.SYSTEM) {
-      return value;
+    if (!this.isBrowser) return undefined;
+    try {
+      const value = localStorage.getItem('theme');
+      return (Object.values(EThemeModes) as ThemeOptions[]).includes(value as any)
+        ? value as ThemeOptions : undefined;
+    } catch {
+      return undefined;
     }
-    return undefined;
   }
 
-  private getThemeMode(isDarkMode: boolean): EThemeModes.LIGHT | EThemeModes.DARK {
+  // SSR-SAFE: Defensive localStorage access
+  private isDarkMode(): boolean {
+    if (!this.isBrowser) return false;
+
+    try {
+      const stored = localStorage.getItem('theme');
+      if (stored === EThemeModes.DARK) return true;
+      if (stored === EThemeModes.SYSTEM) {
+        return this.darkModeQuery?.matches ?? false;
+      }
+      return false;
+    } catch {
+      return this.darkModeQuery?.matches ?? false;
+    }
+  }
+
+  // Rest of methods unchanged...
+  getCurrentTheme(): ThemeOptions { return this.themeSignal(); }
+  getThemeMode(isDarkMode: boolean): EThemeModes.LIGHT | EThemeModes.DARK {
     return isDarkMode ? EThemeModes.DARK : EThemeModes.LIGHT;
   }
 
   private updateMode(isDarkMode: boolean): void {
     const themeMode = this.getThemeMode(isDarkMode);
-    const html = document.documentElement;
+    const html = this.document.documentElement;
     html.classList.toggle('dark', isDarkMode);
     html.setAttribute('data-theme', themeMode);
     html.style.colorScheme = themeMode;
   }
 
   private getDarkModeQuery(): MediaQueryList | undefined {
-    if (!this.isBrowser) {
-      return;
-    }
-    return this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)');
-  }
-
-  private isDarkMode(): boolean {
-    const isSystemDarkMode = this.darkModeQuery?.matches ?? false;
-    return (
-      localStorage['theme'] === EThemeModes.DARK || (localStorage['theme'] === EThemeModes.SYSTEM && isSystemDarkMode)
-    );
+    return this.isBrowser ?
+      this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)') : undefined;
   }
 
   private handleSystemChanges(addListener: boolean): void {
+    const query = this.darkModeQuery;
+    if (!query || !this.isBrowser) return;
+
     if (addListener) {
-      this.darkModeQuery?.addEventListener('change', this.handleThemeChange);
+      query.addEventListener('change', this.handleThemeChange);
     } else {
-      this.darkModeQuery?.removeEventListener('change', this.handleThemeChange);
+      query.removeEventListener('change', this.handleThemeChange);
     }
   }
 }
+
