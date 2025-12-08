@@ -1,4 +1,3 @@
-// auth-dialog.component.ts
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -16,7 +15,6 @@ import {
   AuthService,
   UserRole,
   RegisterDto,
-  OrgRegisterDto,
   LoginDto,
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -192,9 +190,7 @@ type DialogStep =
       >
         @if (selectedRole() === 'organizer') {
         <div>
-          <label class="text-sm font-medium mb-1.5 block"
-            >Organization Name</label
-          >
+          <label class="text-sm font-medium mb-1.5 block">Organization Name</label>
           <input
             z-input
             formControlName="name"
@@ -202,8 +198,7 @@ type DialogStep =
             placeholder="Enter organization name"
             class="w-full"
           />
-          @if (registerForm.get('name')?.invalid &&
-          registerForm.get('name')?.touched) {
+          @if (registerForm.get('name')?.invalid && registerForm.get('name')?.touched) {
           <p class="text-xs text-destructive mt-1">
             Organization name is required
           </p>
@@ -220,8 +215,7 @@ type DialogStep =
               placeholder="First name"
               class="w-full"
             />
-            @if (registerForm.get('firstName')?.invalid &&
-            registerForm.get('firstName')?.touched) {
+            @if (registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched) {
             <p class="text-xs text-destructive mt-1">Required</p>
             }
           </div>
@@ -234,8 +228,7 @@ type DialogStep =
               placeholder="Last name"
               class="w-full"
             />
-            @if (registerForm.get('lastName')?.invalid &&
-            registerForm.get('lastName')?.touched) {
+            @if (registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched) {
             <p class="text-xs text-destructive mt-1">Required</p>
             }
           </div>
@@ -251,8 +244,7 @@ type DialogStep =
             placeholder="Enter your email"
             class="w-full"
           />
-          @if (registerForm.get('email')?.invalid &&
-          registerForm.get('email')?.touched) {
+          @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
           <p class="text-xs text-destructive mt-1">Valid email is required</p>
           }
         </div>
@@ -266,8 +258,7 @@ type DialogStep =
             placeholder="Create a password"
             class="w-full"
           />
-          @if (registerForm.get('password')?.invalid &&
-          registerForm.get('password')?.touched) {
+          @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
           <p class="text-xs text-destructive mt-1">
             Password must be at least 6 characters
           </p>
@@ -275,9 +266,7 @@ type DialogStep =
         </div>
 
         @if (errorMessage()) {
-        <div
-          class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
-        >
+        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
           {{ errorMessage() }}
         </div>
         }
@@ -324,25 +313,6 @@ type DialogStep =
         Enter your credentials to access your account
       </p>
 
-      <!-- <div class="flex gap-2 mb-6">
-        <button
-          z-button
-          [zType]="loginRole() === 'user' ? 'default' : 'outline'"
-          class="flex-1"
-          (click)="setLoginRole('user')"
-        >
-          Attendee
-        </button>
-        <button
-          z-button
-          [zType]="loginRole() === 'organizer' ? 'default' : 'outline'"
-          class="flex-1"
-          (click)="setLoginRole('organizer')"
-        >
-          Organizer
-        </button>
-      </div> -->
-
       <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="space-y-4">
         <div>
           <label class="text-sm font-medium mb-1.5 block">Email</label>
@@ -353,8 +323,7 @@ type DialogStep =
             placeholder="Enter your email"
             class="w-full"
           />
-          @if (loginForm.get('email')?.invalid &&
-          loginForm.get('email')?.touched) {
+          @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
           <p class="text-xs text-destructive mt-1">Valid email is required</p>
           }
         </div>
@@ -365,8 +334,9 @@ type DialogStep =
             <a
               (click)="goToForgotPassword()"
               class="text-xs text-primary hover:underline cursor-pointer"
-              >Forgot password?</a
             >
+              Forgot password?
+            </a>
           </div>
           <input
             z-input
@@ -375,16 +345,13 @@ type DialogStep =
             placeholder="Enter your password"
             class="w-full"
           />
-          @if (loginForm.get('password')?.invalid &&
-          loginForm.get('password')?.touched) {
+          @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
           <p class="text-xs text-destructive mt-1">Password is required</p>
           }
         </div>
 
         @if (errorMessage()) {
-        <div
-          class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
-        >
+        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
           {{ errorMessage() }}
         </div>
         }
@@ -445,24 +412,19 @@ type DialogStep =
             placeholder="Enter your email"
             class="w-full"
           />
-          @if (forgotPasswordForm.get('email')?.invalid &&
-          forgotPasswordForm.get('email')?.touched) {
+          @if (forgotPasswordForm.get('email')?.invalid && forgotPasswordForm.get('email')?.touched) {
           <p class="text-xs text-destructive mt-1">Valid email is required</p>
           }
         </div>
 
         @if (errorMessage()) {
-        <div
-          class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
-        >
+        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
           {{ errorMessage() }}
         </div>
         }
 
         @if (successMessage()) {
-        <div
-          class="bg-green-50 text-green-800 text-sm p-3 rounded-md border border-green-200"
-        >
+        <div class="bg-green-50 text-green-800 text-sm p-3 rounded-md border border-green-200">
           {{ successMessage() }}
         </div>
         }
@@ -511,10 +473,6 @@ type DialogStep =
             placeholder="Enter your email"
             class="w-full"
           />
-          @if (resetPasswordForm.get('email')?.invalid &&
-          resetPasswordForm.get('email')?.touched) {
-          <p class="text-xs text-destructive mt-1">Valid email is required</p>
-          }
         </div>
 
         <div>
@@ -526,10 +484,6 @@ type DialogStep =
             placeholder="Enter reset token from email"
             class="w-full"
           />
-          @if (resetPasswordForm.get('token')?.invalid &&
-          resetPasswordForm.get('token')?.touched) {
-          <p class="text-xs text-destructive mt-1">Token is required</p>
-          }
         </div>
 
         <div>
@@ -541,27 +495,11 @@ type DialogStep =
             placeholder="Enter new password"
             class="w-full"
           />
-          @if (resetPasswordForm.get('newPassword')?.invalid &&
-          resetPasswordForm.get('newPassword')?.touched) {
-          <p class="text-xs text-destructive mt-1">
-            Password must be at least 6 characters
-          </p>
-          }
         </div>
 
         @if (errorMessage()) {
-        <div
-          class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
-        >
+        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
           {{ errorMessage() }}
-        </div>
-        }
-
-        @if (successMessage()) {
-        <div
-          class="bg-green-50 text-green-800 text-sm p-3 rounded-md border border-green-200"
-        >
-          {{ successMessage() }}
         </div>
         }
 
@@ -593,11 +531,15 @@ export class AuthDialog {
   successMessage = signal('');
 
   registerForm!: FormGroup;
-  loginForm: FormGroup;
-  forgotPasswordForm: FormGroup;
-  resetPasswordForm: FormGroup;
+  loginForm!: FormGroup;
+  forgotPasswordForm!: FormGroup;
+  resetPasswordForm!: FormGroup;
 
   constructor() {
+    this.initForms();
+  }
+
+  private initForms(): void {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]],
@@ -622,12 +564,6 @@ export class AuthDialog {
         name: ['', [Validators.required]],
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(6)]],
-        phoneNumber: [''],
-        city: [''],
-        region: [''],
-        bio: [''],
-        logoUrl: [''],
-        coverUrl: [''],
       });
     } else {
       this.registerForm = this.fb.group({
@@ -635,9 +571,6 @@ export class AuthDialog {
         lastName: ['', [Validators.required]],
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(6)]],
-        phoneNumber: [''],
-        city: [''],
-        region: [''],
       });
     }
   }
@@ -647,6 +580,7 @@ export class AuthDialog {
     this.successMessage.set('');
   }
 
+  // Navigation methods
   goToRoleSelection(): void {
     this.step.set('role-selection');
     this.clearMessages();
@@ -681,41 +615,31 @@ export class AuthDialog {
 
   selectRole(role: UserRole): void {
     this.selectedRole.set(role);
+    this.loginRole.set(role);
     this.buildRegisterForm();
     this.step.set('register');
     this.clearMessages();
   }
 
-  setLoginRole(role: UserRole): void {
-    this.loginRole.set(role);
-    this.clearMessages();
-  }
-
+  // Form submissions
   onRegister(): void {
     if (this.registerForm.invalid || this.isSubmitting()) return;
 
     this.isSubmitting.set(true);
     this.clearMessages();
-    const role = this.selectedRole();
-    const formValue = this.registerForm.value;
 
-    this.authService.register(formValue, role).subscribe({
+    const formValue: RegisterDto = this.registerForm.value;
+    
+    this.authService.register(formValue, this.selectedRole()).subscribe({
       next: () => {
         this.isSubmitting.set(false);
-        this.loginRole.set(role);
         this.loginForm.patchValue({ email: formValue.email });
         this.step.set('login');
-        this.successMessage.set(
-          'Account created successfully! Please log in.'
-        );
+        this.successMessage.set('Account created successfully! Please log in.');
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const errorMsg =
-          err?.error?.message ||
-          err?.error?.title ||
-          'Registration failed. Please try again.';
-        this.errorMessage.set(errorMsg);
+        this.errorMessage.set(err.error?.message || 'Registration failed. Please try again.');
       },
     });
   }
@@ -726,31 +650,21 @@ export class AuthDialog {
     this.isSubmitting.set(true);
     this.clearMessages();
 
-    const role = this.loginRole();
     const payload: LoginDto = this.loginForm.value;
-
-    this.authService.login(payload, role).subscribe({
-      next: (res) => {
+    
+    this.authService.login(payload, this.loginRole()).subscribe({
+      next: () => {
         this.isSubmitting.set(false);
-        this.authService.setAuthData(res, role);
         this.dialogRef.close();
-
-        if (role === 'user') {
-          alert(
-            'Please use the Eventora mobile app to access your attendee account.'
-          );
-          this.router.navigate(['/']);
+        if (this.loginRole() === 'organizer') {
+          setTimeout(() => this.router.navigate(['/dashboard']), 100);
         } else {
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/']);
         }
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const errorMsg =
-          err?.error?.message ||
-          err?.error?.title ||
-          'Login failed. Please check your credentials.';
-        this.errorMessage.set(errorMsg);
+        this.errorMessage.set(err.error?.message || 'Login failed. Please check your credentials.');
       },
     });
   }
@@ -762,14 +676,11 @@ export class AuthDialog {
     this.clearMessages();
 
     const payload: ForgotPasswordDto = this.forgotPasswordForm.value;
-    const role = this.loginRole();
-
-    this.authService.forgotPassword(payload, role).subscribe({
+    
+    this.authService.forgotPassword(payload, this.loginRole()).subscribe({
       next: () => {
         this.isSubmitting.set(false);
-        this.successMessage.set(
-          'Password reset link sent to your email. Check your inbox.'
-        );
+        this.successMessage.set('Password reset link sent to your email. Check your inbox.');
         setTimeout(() => {
           this.step.set('reset-password');
           this.resetPasswordForm.patchValue({ email: payload.email });
@@ -777,11 +688,7 @@ export class AuthDialog {
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const errorMsg =
-          err?.error?.message ||
-          err?.error?.title ||
-          'Failed to send reset link. Please try again.';
-        this.errorMessage.set(errorMsg);
+        this.errorMessage.set(err.error?.message || 'Failed to send reset link.');
       },
     });
   }
@@ -793,9 +700,8 @@ export class AuthDialog {
     this.clearMessages();
 
     const payload: ResetPasswordDto = this.resetPasswordForm.value;
-    const role = this.loginRole();
-
-    this.authService.resetPassword(payload, role).subscribe({
+    
+    this.authService.resetPassword(payload, this.loginRole()).subscribe({
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Password reset successfully! You can now login.');
@@ -806,11 +712,7 @@ export class AuthDialog {
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const errorMsg =
-          err?.error?.message ||
-          err?.error?.title ||
-          'Password reset failed. Please try again.';
-        this.errorMessage.set(errorMsg);
+        this.errorMessage.set(err.error?.message || 'Password reset failed.');
       },
     });
   }
