@@ -1,3 +1,4 @@
+<!-- src/app/features/events/edit-event/edit-event.html -->
 <div class="max-w-4xl mx-auto p-6">
   <div class="mb-6">
     <h1 class="text-3xl font-bold mb-2">Edit Event</h1>
@@ -9,21 +10,27 @@
 
   @if (loading() && !eventForm) {
     <div class="text-center py-12">
-      <!-- <z-icon zType="loader-2" class="w-8 h-8 animate-spin mx-auto text-primary" /> -->
+      <z-icon
+        [zType]="icons.loader"
+        class="w-8 h-8 animate-spin mx-auto text-primary"
+      />
       <p class="text-muted-foreground mt-2">Loading event...</p>
     </div>
   } @else if (eventForm) {
     <form [formGroup]="eventForm" (ngSubmit)="onSubmit()">
       <!-- Basic Information -->
-      <div z-card class="mb-6">
-        <div z-card-header>
-          <div z-card-title class="flex items-center gap-2">
-            <z-icon zType="info" class="w-5 h-5" />
-            <span>Basic Information</span>
+      <div z-card class="mb-6 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <z-icon [zType]="icons.info" class="w-5 h-5 text-primary" />
+          <div>
+            <h2 class="text-xl font-semibold">Basic Information</h2>
+            <p class="text-sm text-muted-foreground">
+              Update the main details about your event
+            </p>
           </div>
-          <div z-card-description>Update the main details about your event</div>
         </div>
-        <div z-card-content class="space-y-4">
+
+        <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium mb-2">
               Event Title <span class="text-destructive">*</span>
@@ -82,15 +89,18 @@
       </div>
 
       <!-- Date & Time -->
-      <div z-card class="mb-6">
-        <div z-card-header>
-          <div z-card-title class="flex items-center gap-2">
-            <z-icon zType="calendar" class="w-5 h-5" />
-            <span>Date & Time</span>
+      <div z-card class="mb-6 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <z-icon [zType]="icons.calendar" class="w-5 h-5 text-primary" />
+          <div>
+            <h2 class="text-xl font-semibold">Date & Time</h2>
+            <p class="text-sm text-muted-foreground">
+              Update when your event will take place
+            </p>
           </div>
-          <div z-card-description>Update when your event will take place</div>
         </div>
-        <div z-card-content class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium mb-2">
               Start Date & Time <span class="text-destructive">*</span>
@@ -132,15 +142,18 @@
       </div>
 
       <!-- Location Details -->
-      <div z-card class="mb-6">
-        <div z-card-header>
-          <div z-card-title class="flex items-center gap-2">
-            <!-- <z-icon zType="map-pin" class="w-5 h-5" /> -->
-            <span>Location Details</span>
+      <div z-card class="mb-6 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <z-icon [zType]="icons.mapPin" class="w-5 h-5 text-primary" />
+          <div>
+            <h2 class="text-xl font-semibold">Location Details</h2>
+            <p class="text-sm text-muted-foreground">
+              Update event type and location
+            </p>
           </div>
-          <div z-card-description>Update event type and location</div>
         </div>
-        <div z-card-content class="space-y-4">
+
+        <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium mb-2">
               Event Type <span class="text-destructive">*</span>
@@ -222,32 +235,33 @@
       </div>
 
       <!-- Category Selection -->
-      <div z-card class="mb-6">
-        <div z-card-header>
-          <div z-card-title class="flex items-center gap-2">
-            <z-icon zType="folder" class="w-5 h-5" />
-            <span>Event Category</span>
-          </div>
-          <div z-card-description>Update the category for your event</div>
-        </div>
-        <div z-card-content>
+      <div z-card class="mb-6 p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <z-icon [zType]="icons.folder" class="w-5 h-5 text-primary" />
           <div>
-            <label class="block text-sm font-medium mb-2">
-              Category <span class="text-destructive">*</span>
-            </label>
-            <select z-input formControlName="categoryId" class="w-full">
-              <option [value]="null" disabled>Select a category</option>
-              @for (category of categories(); track category.id) {
-                <option [value]="category.id">{{ category.name }}</option>
-              }
-            </select>
-            @if (
-              eventForm.get("categoryId")?.invalid &&
-              eventForm.get("categoryId")?.touched
-            ) {
-              <p class="text-destructive text-sm mt-1">Category is required</p>
-            }
+            <h2 class="text-xl font-semibold">Event Category</h2>
+            <p class="text-sm text-muted-foreground">
+              Update the category for your event
+            </p>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">
+            Category <span class="text-destructive">*</span>
+          </label>
+          <select z-input formControlName="categoryId" class="w-full">
+            <option [value]="null" disabled>Select a category</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+          @if (
+            eventForm.get("categoryId")?.invalid &&
+            eventForm.get("categoryId")?.touched
+          ) {
+            <p class="text-destructive text-sm mt-1">Category is required</p>
+          }
         </div>
       </div>
 
@@ -262,19 +276,20 @@
           (click)="cancel()"
           [disabled]="loading()"
         >
-          <z-icon zType="x" class="mr-2 w-4 h-4" />
+          <z-icon [zType]="icons.x" class="mr-2 w-4 h-4" />
           Cancel
         </button>
         <button
           type="submit"
           z-button
+          zType="default"
           [disabled]="eventForm.invalid || loading()"
         >
           @if (loading()) {
-            <!-- <z-icon zType="loader-2" class="mr-2 w-4 h-4 animate-spin" /> -->
+            <z-icon [zType]="icons.loader" class="mr-2 w-4 h-4 animate-spin" />
             <span>Updating...</span>
           } @else {
-            <z-icon zType="save" class="mr-2 w-4 h-4" />
+            <z-icon [zType]="icons.save" class="mr-2 w-4 h-4" />
             <span>Update Event</span>
           }
         </button>

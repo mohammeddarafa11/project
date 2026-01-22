@@ -39,6 +39,7 @@ export interface CreateEventDto {
   categoryId: number;
 }
 
+// ✅ FIXED: Added organizationId
 export interface UpdateEventDto {
   title: string;
   start_time: string;
@@ -49,6 +50,7 @@ export interface UpdateEventDto {
   online_url?: string | null;
   event_img_url?: string | null;
   event_type: number;
+  organizationId: number; // ✅ Added this!
   categoryId: number;
 }
 
