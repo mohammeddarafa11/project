@@ -1,0 +1,40 @@
+/* src/app/features/dashboard/dashboard.css */
+
+/* Custom scrollbar styling for sidebar */
+:host ::ng-deep z-sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+:host ::ng-deep z-sidebar nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+:host ::ng-deep z-sidebar nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:host ::ng-deep z-sidebar nav::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
+:host ::ng-deep z-sidebar nav::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* Smooth transitions */
+z-sidebar {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Active menu item styling */
+button[z-button].active {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Ensure content area takes full height */
+z-content > div {
+  min-height: 100%;
+}

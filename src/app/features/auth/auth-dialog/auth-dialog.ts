@@ -1,3 +1,4 @@
+// src/app/features/auth/auth-dialog/auth-dialog.ts
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -11,6 +12,8 @@ import { ZardDialogRef } from '@shared/components/dialog/dialog-ref';
 import { ZardButtonComponent } from '@shared/components/button/button.component';
 import { ZardDividerComponent } from '@shared/components/divider/divider.component';
 import { ZardInputDirective } from '@shared/components/input/input.directive';
+import { ZardIconComponent } from '@shared/components/icon/icon.component';
+import { type ZardIcon } from '@shared/components/icon/icons';
 import {
   AuthService,
   UserRole,
@@ -37,483 +40,621 @@ type DialogStep =
     ZardButtonComponent,
     ZardDividerComponent,
     ZardInputDirective,
+    ZardIconComponent,
   ],
   template: `
     <!-- WELCOME SCREEN -->
     @if (step() === 'welcome') {
-    <div class="p-6">
-      <h2 class="text-2xl font-bold mb-2">Get Started</h2>
-      <p class="text-muted-foreground mb-6">
-        Create your account to start building amazing events.
-      </p>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div
+            class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4"
+          >
+            <z-icon [zType]="icons.calendar" class="w-8 h-8 text-primary" />
+          </div>
+          <h2 class="text-2xl font-bold mb-2">Get Started with Eventora</h2>
+          <p class="text-muted-foreground">
+            Create your account to start building amazing events.
+          </p>
+        </div>
 
-      <div class="space-y-3">
-        <button
-          z-button
-          zType="default"
-          class="w-full"
-          (click)="goToRoleSelection()"
-        >
-          Sign Up
-        </button>
+        <div class="space-y-3">
+          <button
+            z-button
+            zType="default"
+            class="w-full"
+            (click)="goToRoleSelection()"
+          >
+            <z-icon [zType]="icons.userPlus" class="mr-2 w-4 h-4" />
+            Sign Up
+          </button>
 
-        <button z-button zType="outline" class="w-full" (click)="goToLogin()">
-          Login
-        </button>
+          <button z-button zType="outline" class="w-full" (click)="goToLogin()">
+            <z-icon [zType]="icons.logIn" class="mr-2 w-4 h-4" />
+            Organizer Login
+          </button>
+        </div>
+
+        <z-divider zSpacing="sm" class="my-4" />
+
+        <p class="text-sm text-center text-muted-foreground">
+          Free 14-day trial, no credit card required.
+        </p>
       </div>
-
-      <z-divider zSpacing="sm" class="my-4" />
-
-      <p class="text-sm text-center text-muted-foreground">
-        Free 14-day trial, no credit card required.
-      </p>
-    </div>
     }
 
     <!-- ROLE SELECTION -->
     @if (step() === 'role-selection') {
-    <div class="p-6">
-      <button
-        z-button
-        zType="ghost"
-        class="mb-4 -ml-2"
-        (click)="backToWelcome()"
-      >
-        ← Back
-      </button>
-
-      <h2 class="text-2xl font-bold mb-2">Choose Your Role</h2>
-      <p class="text-muted-foreground mb-6">
-        Select how you want to use Eventora
-      </p>
-
-      <div class="grid grid-cols-2 gap-4">
-        <!-- Organizer -->
-        <div
-          class="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
-          (click)="selectRole('organizer')"
+      <div class="p-6">
+        <button
+          z-button
+          zType="ghost"
+          class="mb-4 -ml-2"
+          (click)="backToWelcome()"
         >
-          <div class="flex flex-col items-center text-center space-y-3">
-            <div
-              class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center"
-            >
-              <svg
-                class="w-10 h-10 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold">Organizer</h3>
-            <p class="text-xs text-muted-foreground">
-              Create and manage events
-            </p>
-          </div>
-        </div>
+          <z-icon [zType]="icons.arrowLeft" class="mr-2 w-4 h-4" />
+          Back
+        </button>
 
-        <!-- Attendee -->
-        <div
-          class="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
-          (click)="selectRole('user')"
-        >
-          <div class="flex flex-col items-center text-center space-y-3">
-            <div
-              class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center"
-            >
-              <svg
-                class="w-10 h-10 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold">Attendee</h3>
-            <p class="text-xs text-muted-foreground">
-              Discover and join events
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="text-center mt-6">
-        <p class="text-sm text-muted-foreground">
-          Already have an account?
-          <a
-            (click)="goToLogin()"
-            class="text-primary hover:underline cursor-pointer font-medium"
-          >
-            Login
-          </a>
+        <h2 class="text-2xl font-bold mb-2">Choose Your Role</h2>
+        <p class="text-muted-foreground mb-6">
+          Select how you want to use Eventora
         </p>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Organizer -->
+          <div
+            class="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
+            [class.border-primary]="selectedRole() === 'organizer'"
+            [class.bg-primary/5]="selectedRole() === 'organizer'"
+            (click)="selectRole('organizer')"
+          >
+            <div class="flex flex-col items-center text-center space-y-3">
+              <div
+                class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center"
+              >
+                <z-icon
+                  [zType]="icons.briefcase"
+                  class="w-10 h-10 text-primary"
+                />
+              </div>
+              <h3 class="text-lg font-semibold">Organizer</h3>
+              <p class="text-xs text-muted-foreground">
+                Create and manage events
+              </p>
+            </div>
+          </div>
+
+          <!-- Attendee -->
+          <div
+            class="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
+            [class.border-primary]="selectedRole() === 'user'"
+            [class.bg-primary/5]="selectedRole() === 'user'"
+            (click)="selectRole('user')"
+          >
+            <div class="flex flex-col items-center text-center space-y-3">
+              <div
+                class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center"
+              >
+                <z-icon [zType]="icons.user" class="w-10 h-10 text-primary" />
+              </div>
+              <h3 class="text-lg font-semibold">Attendee</h3>
+              <p class="text-xs text-muted-foreground">
+                Discover and join events
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-6">
+          <p class="text-sm text-muted-foreground">
+            Already have an organizer account?
+            <a
+              (click)="goToLogin()"
+              class="text-primary hover:underline cursor-pointer font-medium"
+            >
+              Login
+            </a>
+          </p>
+        </div>
       </div>
-    </div>
     }
 
     <!-- REGISTER -->
     @if (step() === 'register') {
-    <div class="p-6">
-      <button
-        z-button
-        zType="ghost"
-        class="mb-4 -ml-2"
-        (click)="backToRoleSelection()"
-      >
-        ← Back
-      </button>
-
-      <h2 class="text-2xl font-bold mb-2">
-        Register as
-        {{ selectedRole() === 'organizer' ? 'Organizer' : 'Attendee' }}
-      </h2>
-      <p class="text-muted-foreground mb-6">
-        Create your account to get started
-      </p>
-
-      <form
-        [formGroup]="registerForm"
-        (ngSubmit)="onRegister()"
-        class="space-y-4"
-      >
-        @if (selectedRole() === 'organizer') {
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Organization Name</label>
-          <input
-            z-input
-            formControlName="name"
-            type="text"
-            placeholder="Enter organization name"
-            class="w-full"
-          />
-          @if (registerForm.get('name')?.invalid && registerForm.get('name')?.touched) {
-          <p class="text-xs text-destructive mt-1">
-            Organization name is required
-          </p>
-          }
-        </div>
-        } @else {
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="text-sm font-medium mb-1.5 block">First Name</label>
-            <input
-              z-input
-              formControlName="firstName"
-              type="text"
-              placeholder="First name"
-              class="w-full"
-            />
-            @if (registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched) {
-            <p class="text-xs text-destructive mt-1">Required</p>
-            }
-          </div>
-          <div>
-            <label class="text-sm font-medium mb-1.5 block">Last Name</label>
-            <input
-              z-input
-              formControlName="lastName"
-              type="text"
-              placeholder="Last name"
-              class="w-full"
-            />
-            @if (registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched) {
-            <p class="text-xs text-destructive mt-1">Required</p>
-            }
-          </div>
-        </div>
-        }
-
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Email</label>
-          <input
-            z-input
-            formControlName="email"
-            type="email"
-            placeholder="Enter your email"
-            class="w-full"
-          />
-          @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
-          <p class="text-xs text-destructive mt-1">Valid email is required</p>
-          }
-        </div>
-
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Password</label>
-          <input
-            z-input
-            formControlName="password"
-            type="password"
-            placeholder="Create a password"
-            class="w-full"
-          />
-          @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
-          <p class="text-xs text-destructive mt-1">
-            Password must be at least 6 characters
-          </p>
-          }
-        </div>
-
-        @if (errorMessage()) {
-        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
-          {{ errorMessage() }}
-        </div>
-        }
-
+      <div class="p-6">
         <button
           z-button
-          zType="default"
-          type="submit"
-          class="w-full"
-          [disabled]="registerForm.invalid || isSubmitting()"
+          zType="ghost"
+          class="mb-4 -ml-2"
+          (click)="backToRoleSelection()"
         >
-          {{ isSubmitting() ? 'Creating Account...' : 'Create Account' }}
+          <z-icon [zType]="icons.arrowLeft" class="mr-2 w-4 h-4" />
+          Back
         </button>
-      </form>
 
-      <div class="text-center mt-4">
-        <p class="text-sm text-muted-foreground">
-          Already have an account?
-          <a
-            (click)="goToLogin()"
-            class="text-primary hover:underline cursor-pointer font-medium"
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold mb-2">
+            Register as
+            {{ selectedRole() === 'organizer' ? 'Organizer' : 'Attendee' }}
+          </h2>
+          <p class="text-muted-foreground">
+            Create your account to get started
+          </p>
+        </div>
+
+        <form
+          [formGroup]="registerForm"
+          (ngSubmit)="onRegister()"
+          class="space-y-4"
+        >
+          @if (selectedRole() === 'organizer') {
+            <div>
+              <label class="text-sm font-medium mb-1.5 block">
+                Organization Name <span class="text-destructive">*</span>
+              </label>
+              <input
+                z-input
+                formControlName="name"
+                type="text"
+                placeholder="Enter organization name"
+                class="w-full"
+              />
+              @if (
+                registerForm.get('name')?.invalid &&
+                registerForm.get('name')?.touched
+              ) {
+                <p class="text-xs text-destructive mt-1">
+                  Organization name is required
+                </p>
+              }
+            </div>
+          } @else {
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm font-medium mb-1.5 block">
+                  First Name <span class="text-destructive">*</span>
+                </label>
+                <input
+                  z-input
+                  formControlName="firstName"
+                  type="text"
+                  placeholder="First name"
+                  class="w-full"
+                />
+                @if (
+                  registerForm.get('firstName')?.invalid &&
+                  registerForm.get('firstName')?.touched
+                ) {
+                  <p class="text-xs text-destructive mt-1">Required</p>
+                }
+              </div>
+              <div>
+                <label class="text-sm font-medium mb-1.5 block">
+                  Last Name <span class="text-destructive">*</span>
+                </label>
+                <input
+                  z-input
+                  formControlName="lastName"
+                  type="text"
+                  placeholder="Last name"
+                  class="w-full"
+                />
+                @if (
+                  registerForm.get('lastName')?.invalid &&
+                  registerForm.get('lastName')?.touched
+                ) {
+                  <p class="text-xs text-destructive mt-1">Required</p>
+                }
+              </div>
+            </div>
+          }
+
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">
+              Email <span class="text-destructive">*</span>
+            </label>
+            <input
+              z-input
+              formControlName="email"
+              type="email"
+              placeholder="Enter your email"
+              class="w-full"
+            />
+            @if (
+              registerForm.get('email')?.invalid &&
+              registerForm.get('email')?.touched
+            ) {
+              <p class="text-xs text-destructive mt-1">
+                Valid email is required
+              </p>
+            }
+          </div>
+
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">
+              Password <span class="text-destructive">*</span>
+            </label>
+            <input
+              z-input
+              formControlName="password"
+              type="password"
+              placeholder="Create a password (min. 6 characters)"
+              class="w-full"
+            />
+            @if (
+              registerForm.get('password')?.invalid &&
+              registerForm.get('password')?.touched
+            ) {
+              <p class="text-xs text-destructive mt-1">
+                Password must be at least 6 characters
+              </p>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div
+              class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
+            >
+              <z-icon [zType]="icons.alertCircle" class="w-4 h-4 inline mr-2" />
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div
+              class="bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-300 text-sm p-3 rounded-md border border-green-200 dark:border-green-800"
+            >
+              <z-icon [zType]="icons.checkCircle" class="w-4 h-4 inline mr-2" />
+              {{ successMessage() }}
+            </div>
+          }
+
+          <button
+            z-button
+            zType="default"
+            type="submit"
+            class="w-full"
+            [disabled]="registerForm.invalid || isSubmitting()"
           >
-            Login
-          </a>
-        </p>
+            @if (isSubmitting()) {
+              <z-icon
+                [zType]="icons.loader"
+                class="w-4 h-4 mr-2 animate-spin"
+              />
+              Creating Account...
+            } @else {
+              Create Account
+            }
+          </button>
+        </form>
+
+        <div class="text-center mt-4">
+          <p class="text-sm text-muted-foreground">
+            Already have an account?
+            <a
+              (click)="goToLogin()"
+              class="text-primary hover:underline cursor-pointer font-medium"
+            >
+              Login
+            </a>
+          </p>
+        </div>
       </div>
-    </div>
     }
 
-    <!-- LOGIN -->
+    <!-- LOGIN (ORGANIZER ONLY) -->
     @if (step() === 'login') {
-    <div class="p-6">
-      <button
-        z-button
-        zType="ghost"
-        class="mb-4 -ml-2"
-        (click)="backToWelcome()"
-      >
-        ← Back
-      </button>
-
-      <h2 class="text-2xl font-bold mb-2">Login to your account</h2>
-      <p class="text-muted-foreground mb-6">
-        Enter your credentials to access your account
-      </p>
-
-      <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="space-y-4">
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Email</label>
-          <input
-            z-input
-            formControlName="email"
-            type="email"
-            placeholder="Enter your email"
-            class="w-full"
-          />
-          @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
-          <p class="text-xs text-destructive mt-1">Valid email is required</p>
-          }
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label class="text-sm font-medium">Password</label>
-            <a
-              (click)="goToForgotPassword()"
-              class="text-xs text-primary hover:underline cursor-pointer"
-            >
-              Forgot password?
-            </a>
-          </div>
-          <input
-            z-input
-            formControlName="password"
-            type="password"
-            placeholder="Enter your password"
-            class="w-full"
-          />
-          @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
-          <p class="text-xs text-destructive mt-1">Password is required</p>
-          }
-        </div>
-
-        @if (errorMessage()) {
-        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
-          {{ errorMessage() }}
-        </div>
-        }
-
+      <div class="p-6">
         <button
           z-button
-          zType="default"
-          type="submit"
-          class="w-full"
-          [disabled]="loginForm.invalid || isSubmitting()"
+          zType="ghost"
+          class="mb-4 -ml-2"
+          (click)="backToWelcome()"
         >
-          {{ isSubmitting() ? 'Logging in...' : 'Login' }}
+          <z-icon [zType]="icons.arrowLeft" class="mr-2 w-4 h-4" />
+          Back
         </button>
-      </form>
 
-      <div class="text-center mt-4">
-        <p class="text-sm text-muted-foreground">
-          Don't have an account?
-          <a
-            (click)="goToRoleSelection()"
-            class="text-primary hover:underline cursor-pointer font-medium"
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold mb-2">Organizer Login</h2>
+          <p class="text-muted-foreground">
+            Login to access your event management dashboard
+          </p>
+        </div>
+
+        <!-- Info Banner -->
+        <div
+          class="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md"
+        >
+          <div class="flex items-start gap-2">
+            <z-icon
+              [zType]="icons.alertCircle"
+              class="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0"
+            />
+            <p class="text-xs text-blue-800 dark:text-blue-300">
+              Only organizers can login to the dashboard. Attendees can browse
+              and join events without logging in.
+            </p>
+          </div>
+        </div>
+
+        <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="space-y-4">
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">Email</label>
+            <input
+              z-input
+              formControlName="email"
+              type="email"
+              placeholder="Enter your organization email"
+              class="w-full"
+            />
+            @if (
+              loginForm.get('email')?.invalid && loginForm.get('email')?.touched
+            ) {
+              <p class="text-xs text-destructive mt-1">
+                Valid email is required
+              </p>
+            }
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-sm font-medium">Password</label>
+              <a
+                (click)="goToForgotPassword()"
+                class="text-xs text-primary hover:underline cursor-pointer"
+              >
+                Forgot password?
+              </a>
+            </div>
+            <input
+              z-input
+              formControlName="password"
+              type="password"
+              placeholder="Enter your password"
+              class="w-full"
+            />
+            @if (
+              loginForm.get('password')?.invalid &&
+              loginForm.get('password')?.touched
+            ) {
+              <p class="text-xs text-destructive mt-1">Password is required</p>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div
+              class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
+            >
+              <z-icon [zType]="icons.alertCircle" class="w-4 h-4 inline mr-2" />
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div
+              class="bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-300 text-sm p-3 rounded-md border border-green-200 dark:border-green-800"
+            >
+              <z-icon [zType]="icons.checkCircle" class="w-4 h-4 inline mr-2" />
+              {{ successMessage() }}
+            </div>
+          }
+
+          <button
+            z-button
+            zType="default"
+            type="submit"
+            class="w-full"
+            [disabled]="loginForm.invalid || isSubmitting()"
           >
-            Sign up
-          </a>
-        </p>
+            @if (isSubmitting()) {
+              <z-icon
+                [zType]="icons.loader"
+                class="w-4 h-4 mr-2 animate-spin"
+              />
+              Logging in...
+            } @else {
+              <z-icon [zType]="icons.briefcase" class="mr-2 w-4 h-4" />
+              Login as Organizer
+            }
+          </button>
+        </form>
+
+        <div class="text-center mt-4">
+          <p class="text-sm text-muted-foreground">
+            Don't have an organizer account?
+            <a
+              (click)="goToRoleSelection()"
+              class="text-primary hover:underline cursor-pointer font-medium"
+            >
+              Sign up
+            </a>
+          </p>
+        </div>
       </div>
-    </div>
     }
 
     <!-- FORGOT PASSWORD -->
     @if (step() === 'forgot-password') {
-    <div class="p-6">
-      <button
-        z-button
-        zType="ghost"
-        class="mb-4 -ml-2"
-        (click)="backToLogin()"
-      >
-        ← Back
-      </button>
-
-      <h2 class="text-2xl font-bold mb-2">Forgot Password</h2>
-      <p class="text-muted-foreground mb-6">
-        Enter your email to receive password reset instructions
-      </p>
-
-      <form
-        [formGroup]="forgotPasswordForm"
-        (ngSubmit)="onForgotPassword()"
-        class="space-y-4"
-      >
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Email</label>
-          <input
-            z-input
-            formControlName="email"
-            type="email"
-            placeholder="Enter your email"
-            class="w-full"
-          />
-          @if (forgotPasswordForm.get('email')?.invalid && forgotPasswordForm.get('email')?.touched) {
-          <p class="text-xs text-destructive mt-1">Valid email is required</p>
-          }
-        </div>
-
-        @if (errorMessage()) {
-        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
-          {{ errorMessage() }}
-        </div>
-        }
-
-        @if (successMessage()) {
-        <div class="bg-green-50 text-green-800 text-sm p-3 rounded-md border border-green-200">
-          {{ successMessage() }}
-        </div>
-        }
-
+      <div class="p-6">
         <button
           z-button
-          zType="default"
-          type="submit"
-          class="w-full"
-          [disabled]="forgotPasswordForm.invalid || isSubmitting()"
+          zType="ghost"
+          class="mb-4 -ml-2"
+          (click)="backToLogin()"
         >
-          {{ isSubmitting() ? 'Sending...' : 'Send Reset Link' }}
+          <z-icon [zType]="icons.arrowLeft" class="mr-2 w-4 h-4" />
+          Back
         </button>
-      </form>
-    </div>
+
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold mb-2">Forgot Password</h2>
+          <p class="text-muted-foreground">
+            Enter your email to receive password reset instructions
+          </p>
+        </div>
+
+        <form
+          [formGroup]="forgotPasswordForm"
+          (ngSubmit)="onForgotPassword()"
+          class="space-y-4"
+        >
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">Email</label>
+            <input
+              z-input
+              formControlName="email"
+              type="email"
+              placeholder="Enter your email"
+              class="w-full"
+            />
+            @if (
+              forgotPasswordForm.get('email')?.invalid &&
+              forgotPasswordForm.get('email')?.touched
+            ) {
+              <p class="text-xs text-destructive mt-1">
+                Valid email is required
+              </p>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div
+              class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
+            >
+              <z-icon [zType]="icons.alertCircle" class="w-4 h-4 inline mr-2" />
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div
+              class="bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-300 text-sm p-3 rounded-md border border-green-200 dark:border-green-800"
+            >
+              <z-icon [zType]="icons.checkCircle" class="w-4 h-4 inline mr-2" />
+              {{ successMessage() }}
+            </div>
+          }
+
+          <button
+            z-button
+            zType="default"
+            type="submit"
+            class="w-full"
+            [disabled]="forgotPasswordForm.invalid || isSubmitting()"
+          >
+            @if (isSubmitting()) {
+              <z-icon
+                [zType]="icons.loader"
+                class="w-4 h-4 mr-2 animate-spin"
+              />
+              Sending...
+            } @else {
+              <z-icon [zType]="icons.mail" class="w-4 h-4 mr-2" />
+              Send Reset Link
+            }
+          </button>
+        </form>
+      </div>
     }
 
     <!-- RESET PASSWORD -->
     @if (step() === 'reset-password') {
-    <div class="p-6">
-      <button
-        z-button
-        zType="ghost"
-        class="mb-4 -ml-2"
-        (click)="backToLogin()"
-      >
-        ← Back
-      </button>
-
-      <h2 class="text-2xl font-bold mb-2">Reset Password</h2>
-      <p class="text-muted-foreground mb-6">
-        Enter your new password and reset token
-      </p>
-
-      <form
-        [formGroup]="resetPasswordForm"
-        (ngSubmit)="onResetPassword()"
-        class="space-y-4"
-      >
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Email</label>
-          <input
-            z-input
-            formControlName="email"
-            type="email"
-            placeholder="Enter your email"
-            class="w-full"
-          />
-        </div>
-
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">Reset Token</label>
-          <input
-            z-input
-            formControlName="token"
-            type="text"
-            placeholder="Enter reset token from email"
-            class="w-full"
-          />
-        </div>
-
-        <div>
-          <label class="text-sm font-medium mb-1.5 block">New Password</label>
-          <input
-            z-input
-            formControlName="newPassword"
-            type="password"
-            placeholder="Enter new password"
-            class="w-full"
-          />
-        </div>
-
-        @if (errorMessage()) {
-        <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
-          {{ errorMessage() }}
-        </div>
-        }
-
+      <div class="p-6">
         <button
           z-button
-          zType="default"
-          type="submit"
-          class="w-full"
-          [disabled]="resetPasswordForm.invalid || isSubmitting()"
+          zType="ghost"
+          class="mb-4 -ml-2"
+          (click)="backToLogin()"
         >
-          {{ isSubmitting() ? 'Resetting...' : 'Reset Password' }}
+          <z-icon [zType]="icons.arrowLeft" class="mr-2 w-4 h-4" />
+          Back
         </button>
-      </form>
-    </div>
+
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold mb-2">Reset Password</h2>
+          <p class="text-muted-foreground">
+            Enter your new password and the reset token from your email
+          </p>
+        </div>
+
+        <form
+          [formGroup]="resetPasswordForm"
+          (ngSubmit)="onResetPassword()"
+          class="space-y-4"
+        >
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">Email</label>
+            <input
+              z-input
+              formControlName="email"
+              type="email"
+              placeholder="Enter your email"
+              class="w-full"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">Reset Token</label>
+            <input
+              z-input
+              formControlName="token"
+              type="text"
+              placeholder="Enter reset token from email"
+              class="w-full"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium mb-1.5 block">New Password</label>
+            <input
+              z-input
+              formControlName="newPassword"
+              type="password"
+              placeholder="Enter new password (min. 6 characters)"
+              class="w-full"
+            />
+          </div>
+
+          @if (errorMessage()) {
+            <div
+              class="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20"
+            >
+              <z-icon [zType]="icons.alertCircle" class="w-4 h-4 inline mr-2" />
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div
+              class="bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-300 text-sm p-3 rounded-md border border-green-200 dark:border-green-800"
+            >
+              <z-icon [zType]="icons.checkCircle" class="w-4 h-4 inline mr-2" />
+              {{ successMessage() }}
+            </div>
+          }
+
+          <button
+            z-button
+            zType="default"
+            type="submit"
+            class="w-full"
+            [disabled]="resetPasswordForm.invalid || isSubmitting()"
+          >
+            @if (isSubmitting()) {
+              <z-icon
+                [zType]="icons.loader"
+                class="w-4 h-4 mr-2 animate-spin"
+              />
+              Resetting...
+            } @else {
+              <z-icon [zType]="icons.key" class="w-4 h-4 mr-2" />
+              Reset Password
+            }
+          </button>
+        </form>
+      </div>
     }
   `,
 })
@@ -525,10 +666,25 @@ export class AuthDialog {
 
   step = signal<DialogStep>('welcome');
   selectedRole = signal<UserRole>('user');
-  loginRole = signal<UserRole>('user');
+  loginRole = signal<UserRole>('organizer'); // Always organizer for login
   isSubmitting = signal(false);
   errorMessage = signal('');
   successMessage = signal('');
+
+  // Icons
+  readonly icons = {
+    calendar: 'calendar' as ZardIcon,
+    userPlus: 'user-plus' as ZardIcon,
+    logIn: 'log-in' as ZardIcon,
+    arrowLeft: 'arrow-left' as ZardIcon,
+    briefcase: 'briefcase' as ZardIcon,
+    user: 'user' as ZardIcon,
+    alertCircle: 'alert-circle' as ZardIcon,
+    checkCircle: 'check-circle' as ZardIcon,
+    loader: 'loader' as ZardIcon,
+    mail: 'mail' as ZardIcon,
+    key: 'key' as ZardIcon,
+  };
 
   registerForm!: FormGroup;
   loginForm!: FormGroup;
@@ -541,8 +697,8 @@ export class AuthDialog {
 
   private initForms(): void {
     this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required]],
+      email: ['test@acmedigital.com', [Validators.required, Validators.email]],
+      password: ['TestPass123!', [Validators.required]],
     });
 
     this.forgotPasswordForm = this.fb.group({
@@ -561,7 +717,7 @@ export class AuthDialog {
   private buildRegisterForm(): void {
     if (this.selectedRole() === 'organizer') {
       this.registerForm = this.fb.group({
-        name: ['', [Validators.required]],
+        name: ['', [Validators.required, Validators.minLength(3)]],
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(6)]],
       });
@@ -589,6 +745,7 @@ export class AuthDialog {
   goToLogin(): void {
     this.step.set('login');
     this.loginForm.reset();
+    this.loginRole.set('organizer'); // Always organizer
     this.clearMessages();
   }
 
@@ -609,13 +766,14 @@ export class AuthDialog {
 
   goToForgotPassword(): void {
     this.step.set('forgot-password');
-    this.forgotPasswordForm.reset();
+    this.forgotPasswordForm.patchValue({
+      email: this.loginForm.get('email')?.value || '',
+    });
     this.clearMessages();
   }
 
   selectRole(role: UserRole): void {
     this.selectedRole.set(role);
-    this.loginRole.set(role);
     this.buildRegisterForm();
     this.step.set('register');
     this.clearMessages();
@@ -629,17 +787,52 @@ export class AuthDialog {
     this.clearMessages();
 
     const formValue: RegisterDto = this.registerForm.value;
-    
-    this.authService.register(formValue, this.selectedRole()).subscribe({
-      next: () => {
+    const role = this.selectedRole();
+
+    console.log(`📝 Registering ${role}:`, formValue.email);
+
+    this.authService.register(formValue, role).subscribe({
+      next: (response) => {
         this.isSubmitting.set(false);
-        this.loginForm.patchValue({ email: formValue.email });
-        this.step.set('login');
-        this.successMessage.set('Account created successfully! Please log in.');
+
+        console.log('✅ Registration response:', response);
+
+        if (response.success) {
+          // Different messages based on role
+          if (role === 'organizer') {
+            this.successMessage.set(
+              'Organizer account created! You can now login to manage events.',
+            );
+            this.loginForm.patchValue({
+              email: formValue.email,
+              password: formValue.password,
+            });
+            this.loginRole.set('organizer');
+          } else {
+            this.successMessage.set(
+              'Account created! You can now browse and join events.',
+            );
+          }
+
+          setTimeout(() => {
+            if (role === 'organizer') {
+              this.step.set('login');
+            } else {
+              // Close dialog for attendees (they don't need to login)
+              this.dialogRef.close();
+            }
+            this.clearMessages();
+          }, 2000);
+        } else {
+          this.errorMessage.set(response.message || 'Registration failed');
+        }
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Registration failed. Please try again.');
+        this.errorMessage.set(
+          err.error?.message || 'Registration failed. Please try again.',
+        );
+        console.error('❌ Registration error:', err);
       },
     });
   }
@@ -651,20 +844,49 @@ export class AuthDialog {
     this.clearMessages();
 
     const payload: LoginDto = this.loginForm.value;
-    
-    this.authService.login(payload, this.loginRole()).subscribe({
-      next: () => {
+
+    console.log('🔐 Organizer login attempt:', payload.email);
+
+    // Always login as organizer
+    this.authService.login(payload, 'organizer').subscribe({
+      next: (response) => {
         this.isSubmitting.set(false);
-        this.dialogRef.close();
-        if (this.loginRole() === 'organizer') {
-          setTimeout(() => this.router.navigate(['/dashboard']), 100);
+
+        console.log('✅ Login response:', response);
+
+        const hasToken =
+          typeof response.data === 'string'
+            ? response.data
+            : response.data?.token || response.token;
+
+        if (response.success && hasToken) {
+          this.successMessage.set(
+            'Login successful! Redirecting to dashboard...',
+          );
+
+          setTimeout(() => {
+            this.dialogRef.close();
+            this.router.navigate(['/dashboard']);
+          }, 1000);
         } else {
-          this.router.navigate(['/']);
+          this.errorMessage.set(
+            response.message || 'Login failed - no token received',
+          );
         }
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Login failed. Please check your credentials.');
+
+        let errorMsg =
+          err.error?.message || 'Login failed. Please check your credentials.';
+
+        if (errorMsg.includes('Invalid') || errorMsg.includes('password')) {
+          errorMsg +=
+            ' Make sure you registered as an Organizer and are using the correct credentials.';
+        }
+
+        this.errorMessage.set(errorMsg);
+        console.error('❌ Login error:', err);
       },
     });
   }
@@ -676,19 +898,33 @@ export class AuthDialog {
     this.clearMessages();
 
     const payload: ForgotPasswordDto = this.forgotPasswordForm.value;
-    
-    this.authService.forgotPassword(payload, this.loginRole()).subscribe({
-      next: () => {
+
+    this.authService.forgotPassword(payload, 'organizer').subscribe({
+      next: (response) => {
         this.isSubmitting.set(false);
-        this.successMessage.set('Password reset link sent to your email. Check your inbox.');
-        setTimeout(() => {
-          this.step.set('reset-password');
-          this.resetPasswordForm.patchValue({ email: payload.email });
-        }, 2000);
+
+        if (response.success) {
+          this.successMessage.set(
+            'Password reset link sent to your email. Check your inbox.',
+          );
+
+          setTimeout(() => {
+            this.step.set('reset-password');
+            this.resetPasswordForm.patchValue({ email: payload.email });
+            this.clearMessages();
+          }, 2500);
+        } else {
+          this.errorMessage.set(
+            response.message || 'Failed to send reset link',
+          );
+        }
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to send reset link.');
+        this.errorMessage.set(
+          err.error?.message || 'Failed to send reset link. Please try again.',
+        );
+        console.error('❌ Forgot password error:', err);
       },
     });
   }
@@ -700,19 +936,32 @@ export class AuthDialog {
     this.clearMessages();
 
     const payload: ResetPasswordDto = this.resetPasswordForm.value;
-    
-    this.authService.resetPassword(payload, this.loginRole()).subscribe({
-      next: () => {
+
+    this.authService.resetPassword(payload, 'organizer').subscribe({
+      next: (response) => {
         this.isSubmitting.set(false);
-        this.successMessage.set('Password reset successfully! You can now login.');
-        setTimeout(() => {
-          this.step.set('login');
-          this.loginForm.reset();
-        }, 2000);
+
+        if (response.success) {
+          this.successMessage.set(
+            'Password reset successfully! You can now login.',
+          );
+
+          setTimeout(() => {
+            this.step.set('login');
+            this.loginForm.patchValue({ email: payload.email });
+            this.clearMessages();
+          }, 2000);
+        } else {
+          this.errorMessage.set(response.message || 'Password reset failed');
+        }
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Password reset failed.');
+        this.errorMessage.set(
+          err.error?.message ||
+            'Password reset failed. Please check your token.',
+        );
+        console.error('❌ Reset password error:', err);
       },
     });
   }

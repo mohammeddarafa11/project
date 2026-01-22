@@ -1,0 +1,136 @@
+<!-- src/app/shared/components/app-sidebar/app-sidebar.component.html -->
+<nav
+  [class]="
+    'flex h-full flex-col overflow-hidden ' +
+    (collapsed() ? 'gap-1 p-1 pt-4' : 'gap-4 p-4')
+  "
+>
+  <!-- Theme Toggle -->
+  <button
+    z-button
+    zType="ghost"
+    class="justify-center"
+    (click)="toggleTheme()"
+    zTooltip="Toggle theme"
+    zPosition="right"
+  >
+    <z-icon [zType]="themeIcon()" />
+  </button>
+
+  <!-- Main Menu Group -->
+  <z-sidebar-group>
+    @if (!collapsed()) {
+      <z-sidebar-group-label>Main</z-sidebar-group-label>
+    }
+    @for (item of mainMenuItems; track item.label) {
+      <button
+        type="button"
+        z-button
+        zType="ghost"
+        [class]="collapsed() ? 'justify-center' : 'justify-start'"
+        [zTooltip]="collapsed() ? item.label : ''"
+        zPosition="right"
+        (click)="navigateTo(item.route!)"
+      >
+        <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
+        @if (!collapsed()) {
+          <span>{{ item.label }}</span>
+        }
+      </button>
+    }
+  </z-sidebar-group>
+
+  <!-- Workspace Menu Group -->
+  <z-sidebar-group>
+    @if (!collapsed()) {
+      <z-sidebar-group-label>Workspace</z-sidebar-group-label>
+    }
+    @for (item of workspaceMenuItems; track item.label) {
+      @if (item.submenu) {
+        <button
+          type="button"
+          z-button
+          zType="ghost"
+          z-menu
+          [zMenuTriggerFor]="submenu"
+          zPlacement="rightTop"
+          [class]="collapsed() ? 'justify-center' : 'justify-start'"
+          [zTooltip]="collapsed() ? item.label : null"
+          zPosition="right"
+        >
+          <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
+          @if (!collapsed()) {
+            <span class="flex-1 text-left">{{ item.label }}</span>
+            <z-icon zType="chevron-right" />
+          }
+        </button>
+
+        <ng-template #submenu>
+          <div z-menu-content class="w-48">
+            @for (subitem of item.submenu; track subitem.label) {
+              <button
+                type="button"
+                z-menu-item
+                (click)="navigateTo(subitem.route!)"
+              >
+                {{ subitem.label }}
+              </button>
+            }
+          </div>
+        </ng-template>
+      } @else {
+        <button
+          type="button"
+          z-button
+          zType="ghost"
+          [class]="collapsed() ? 'justify-center' : 'justify-start'"
+          [zTooltip]="collapsed() ? item.label : ''"
+          zPosition="right"
+          (click)="navigateTo(item.route!)"
+        >
+          <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
+          @if (!collapsed()) {
+            <span>{{ item.label }}</span>
+          }
+        </button>
+      }
+    }
+  </z-sidebar-group>
+
+  <!-- User Profile -->
+  <div class="mt-auto p-2">
+    <div
+      z-menu
+      [zMenuTriggerFor]="userMenu"
+      zPlacement="rightBottom"
+      class="hover:bg-accent flex cursor-pointer items-center justify-center gap-2 rounded-md p-2"
+    >
+      <z-avatar
+        zSrc="https://zardui.com/images/avatar/imgs/avatar_image.jpg"
+        zAlt="User"
+      />
+      @if (!collapsed()) {
+        <div>
+          <span class="font-medium">zardui</span>
+          <div class="text-xs">test@zardui.com</div>
+        </div>
+        <z-icon zType="chevrons-up-down" class="ml-auto" />
+      }
+    </div>
+
+    <ng-template #userMenu>
+      <div z-menu-content class="w-48">
+        <!-- <button type="button" z-menu-item>
+          <z-icon zType="user" class="mr-2" />Profile
+        </button>
+        <button type="button" z-menu-item>
+          <z-icon zType="settings" class="mr-2" />Settings
+        </button> -->
+        <!-- <z-divider zSpacing="sm" /> -->
+        <button type="button" z-menu-item (click)="logout()">
+          <z-icon zType="log-out" class="mr-2" />Logout
+        </button>
+      </div>
+    </ng-template>
+  </div>
+</nav>

@@ -1,0 +1,315 @@
+<!-- src/app/features/events/create-event/create-event.html -->
+<div class="max-w-4xl mx-auto p-6">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold mb-2">Create Event</h1>
+    <p class="text-muted-foreground">
+      Create a new event for
+      <span class="font-semibold">{{ organizationName() }}</span>
+    </p>
+  </div>
+
+  @if (loading() || !eventForm) {
+    <div class="text-center py-12">
+      <z-icon
+        [zType]="icons.loader"
+        class="w-8 h-8 animate-spin mx-auto text-primary"
+      ></z-icon>
+      <p class="text-muted-foreground mt-2">Loading...</p>
+    </div>
+  } @else if (eventForm) {
+    <form [formGroup]="eventForm" (ngSubmit)="onSubmit()">
+      <!-- Basic Information -->
+      <div z-card class="mb-6 p-6">
+        <div class="mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <z-icon [zType]="icons.info" class="w-5 h-5"></z-icon>
+            <h2 class="text-xl font-semibold">Basic Information</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Enter the main details about your event
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">
+              Event Title <span class="text-destructive">*</span>
+            </label>
+            <input
+              z-input
+              formControlName="title"
+              placeholder="e.g., Annual Tech Conference 2026"
+              class="w-full"
+            />
+            @if (
+              eventForm.get("title")?.invalid && eventForm.get("title")?.touched
+            ) {
+              <p class="text-destructive text-sm mt-1">
+                Title is required (minimum 3 characters)
+              </p>
+            }
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2">
+              Description <span class="text-destructive">*</span>
+            </label>
+            <textarea
+              z-input
+              formControlName="description"
+              placeholder="Provide a detailed description of your event..."
+              rows="5"
+              class="w-full"
+            ></textarea>
+            @if (
+              eventForm.get("description")?.invalid &&
+              eventForm.get("description")?.touched
+            ) {
+              <p class="text-destructive text-sm mt-1">
+                Description is required
+              </p>
+            }
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2"
+              >Event Image URL</label
+            >
+            <input
+              z-input
+              formControlName="event_img_url"
+              placeholder="https://example.com/event-image.jpg"
+              class="w-full"
+            />
+            <p class="text-muted-foreground text-xs mt-1">
+              Optional: Provide a URL to an image for your event
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date & Time -->
+      <div z-card class="mb-6 p-6">
+        <div class="mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <z-icon [zType]="icons.calendar" class="w-5 h-5"></z-icon>
+            <h2 class="text-xl font-semibold">Date & Time</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            When will your event take place?
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">
+              Start Date & Time <span class="text-destructive">*</span>
+            </label>
+            <input
+              z-input
+              type="datetime-local"
+              formControlName="start_time"
+              class="w-full"
+            />
+            @if (
+              eventForm.get("start_time")?.invalid &&
+              eventForm.get("start_time")?.touched
+            ) {
+              <p class="text-destructive text-sm mt-1">
+                Start time is required
+              </p>
+            }
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2">
+              End Date & Time <span class="text-destructive">*</span>
+            </label>
+            <input
+              z-input
+              type="datetime-local"
+              formControlName="end_time"
+              class="w-full"
+            />
+            @if (
+              eventForm.get("end_time")?.invalid &&
+              eventForm.get("end_time")?.touched
+            ) {
+              <p class="text-destructive text-sm mt-1">End time is required</p>
+            }
+          </div>
+        </div>
+
+        <!-- ✅ Date range validation error -->
+        @if (
+          eventForm.errors?.["dateRange"] &&
+          (eventForm.get("start_time")?.touched ||
+            eventForm.get("end_time")?.touched)
+        ) {
+          <p class="text-destructive text-sm mt-2">
+            End time must be after start time
+          </p>
+        }
+      </div>
+
+      <!-- Location Details -->
+      <div z-card class="mb-6 p-6">
+        <div class="mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <z-icon [zType]="icons.mapPin" class="w-5 h-5"></z-icon>
+            <h2 class="text-xl font-semibold">Location Details</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Specify event type and location
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">
+              Event Type <span class="text-destructive">*</span>
+            </label>
+            <select z-input formControlName="event_type" class="w-full">
+              <option [value]="0">In-Person Event</option>
+              <option [value]="1">Online Event</option>
+            </select>
+          </div>
+
+          @if (!isOnline()) {
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-md"
+            >
+              <div>
+                <label class="block text-sm font-medium mb-2">
+                  City <span class="text-destructive">*</span>
+                </label>
+                <input
+                  z-input
+                  formControlName="city"
+                  placeholder="e.g., New York"
+                  class="w-full"
+                />
+                @if (
+                  eventForm.get("city")?.invalid &&
+                  eventForm.get("city")?.touched
+                ) {
+                  <p class="text-destructive text-sm mt-1">City is required</p>
+                }
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-2">
+                  Region/State <span class="text-destructive">*</span>
+                </label>
+                <input
+                  z-input
+                  formControlName="region"
+                  placeholder="e.g., NY"
+                  class="w-full"
+                />
+                @if (
+                  eventForm.get("region")?.invalid &&
+                  eventForm.get("region")?.touched
+                ) {
+                  <p class="text-destructive text-sm mt-1">
+                    Region is required
+                  </p>
+                }
+              </div>
+            </div>
+          }
+
+          @if (isOnline()) {
+            <div class="p-4 bg-muted rounded-md">
+              <label class="block text-sm font-medium mb-2">
+                Online Meeting URL <span class="text-destructive">*</span>
+              </label>
+              <input
+                z-input
+                formControlName="online_url"
+                placeholder="https://meet.google.com/abc-defg-hij"
+                class="w-full"
+              />
+              @if (
+                eventForm.get("online_url")?.invalid &&
+                eventForm.get("online_url")?.touched
+              ) {
+                <p class="text-destructive text-sm mt-1">
+                  Valid URL is required
+                </p>
+              }
+              <p class="text-muted-foreground text-xs mt-1">
+                Provide the meeting link (Zoom, Google Meet, etc.)
+              </p>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Category Selection -->
+      <div z-card class="mb-6 p-6">
+        <div class="mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <z-icon [zType]="icons.folder" class="w-5 h-5"></z-icon>
+            <h2 class="text-xl font-semibold">Event Category</h2>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Choose the appropriate category for your event
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">
+            Category <span class="text-destructive">*</span>
+          </label>
+          <select z-input formControlName="categoryId" class="w-full">
+            <option [value]="null" disabled>Select a category</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+          @if (
+            eventForm.get("categoryId")?.invalid &&
+            eventForm.get("categoryId")?.touched
+          ) {
+            <p class="text-destructive text-sm mt-1">Category is required</p>
+          }
+        </div>
+      </div>
+
+      <div z-divider class="my-6"></div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-4">
+        <button
+          type="button"
+          z-button
+          zType="outline"
+          (click)="cancel()"
+          [disabled]="loading()"
+        >
+          <z-icon [zType]="icons.x" class="mr-2 w-4 h-4"></z-icon>
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          z-button
+          zType="default"
+          [disabled]="eventForm.invalid || loading()"
+        >
+          @if (loading()) {
+            <z-icon
+              [zType]="icons.loader"
+              class="mr-2 w-4 h-4 animate-spin"
+            ></z-icon>
+            <span>Creating...</span>
+          } @else {
+            <z-icon [zType]="icons.save" class="mr-2 w-4 h-4"></z-icon>
+            <span>Create Event</span>
+          }
+        </button>
+      </div>
+    </form>
+  }
+</div>

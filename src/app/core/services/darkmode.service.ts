@@ -1,12 +1,24 @@
+// src/app/core/services/darkmode.service.ts
 import { isPlatformBrowser } from '@angular/common';
-import { DOCUMENT, Injectable, OnDestroy, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import {
+  DOCUMENT,
+  Injectable,
+  OnDestroy,
+  PLATFORM_ID,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 
 export enum EThemeModes {
   LIGHT = 'light',
   DARK = 'dark',
   SYSTEM = 'system',
 }
-export type ThemeOptions = EThemeModes.LIGHT | EThemeModes.DARK | EThemeModes.SYSTEM;
+export type ThemeOptions =
+  | EThemeModes.LIGHT
+  | EThemeModes.DARK
+  | EThemeModes.SYSTEM;
 
 @Injectable({ providedIn: 'root' })
 export class DarkModeService implements OnDestroy {
@@ -16,12 +28,12 @@ export class DarkModeService implements OnDestroy {
 
   private themeSignal = signal<ThemeOptions>(EThemeModes.SYSTEM);
   private darkModeQuery?: MediaQueryList;
-  private handleThemeChange = (event: MediaQueryListEvent) => this.updateMode(event.matches);
+  private handleThemeChange = (event: MediaQueryListEvent) =>
+    this.updateMode(event.matches);
 
   readonly theme = computed(() => this.themeSignal());
 
   constructor() {
-    // Initialize immediately during construction (SSR-safe)
     if (this.isBrowser) {
       this.initTheme();
     }
@@ -38,19 +50,36 @@ export class DarkModeService implements OnDestroy {
     this.applyTheme(stored ?? EThemeModes.SYSTEM);
   }
 
+  // ✅ FIXED: Toggle theme properly
   toggleTheme(): void {
     if (!this.isBrowser) return;
 
     const current = this.getCurrentTheme();
-    if (current === EThemeModes.SYSTEM) return;
 
-    this.applyTheme(current === EThemeModes.DARK ? EThemeModes.LIGHT : EThemeModes.DARK);
+    // If currently SYSTEM, switch based on actual current mode
+    if (current === EThemeModes.SYSTEM) {
+      this.darkModeQuery ??= this.getDarkModeQuery();
+      const isCurrentlyDark = this.darkModeQuery?.matches ?? false;
+      this.applyTheme(isCurrentlyDark ? EThemeModes.LIGHT : EThemeModes.DARK);
+      return;
+    }
+
+    // Toggle between LIGHT and DARK
+    this.applyTheme(
+      current === EThemeModes.DARK ? EThemeModes.LIGHT : EThemeModes.DARK,
+    );
+  }
+
+  // ✅ NEW: Set specific theme
+  setTheme(theme: ThemeOptions): void {
+    if (!this.isBrowser) return;
+    this.applyTheme(theme);
   }
 
   private applyTheme(theme: ThemeOptions): void {
     if (!this.isBrowser) return;
 
-    localStorage.setItem('theme', theme); // Use setItem (SSR-safe after isBrowser)
+    localStorage.setItem('theme', theme);
     this.themeSignal.set(theme);
     this.handleSystemChanges(false);
 
@@ -62,38 +91,48 @@ export class DarkModeService implements OnDestroy {
     }
   }
 
-  // SSR-SAFE: No localStorage access without browser check
   private getStoredTheme(): ThemeOptions | undefined {
     if (!this.isBrowser) return undefined;
     try {
       const value = localStorage.getItem('theme');
-      return (Object.values(EThemeModes) as ThemeOptions[]).includes(value as any)
-        ? value as ThemeOptions : undefined;
+      return (Object.values(EThemeModes) as ThemeOptions[]).includes(
+        value as any,
+      )
+        ? (value as ThemeOptions)
+        : undefined;
     } catch {
       return undefined;
     }
   }
 
-  // SSR-SAFE: Defensive localStorage access
   private isDarkMode(): boolean {
     if (!this.isBrowser) return false;
 
     try {
       const stored = localStorage.getItem('theme');
       if (stored === EThemeModes.DARK) return true;
+      if (stored === EThemeModes.LIGHT) return false;
       if (stored === EThemeModes.SYSTEM) {
         return this.darkModeQuery?.matches ?? false;
       }
-      return false;
+      // Default to system preference if no stored theme
+      return this.darkModeQuery?.matches ?? false;
     } catch {
       return this.darkModeQuery?.matches ?? false;
     }
   }
 
-  // Rest of methods unchanged...
-  getCurrentTheme(): ThemeOptions { return this.themeSignal(); }
+  getCurrentTheme(): ThemeOptions {
+    return this.themeSignal();
+  }
+
   getThemeMode(isDarkMode: boolean): EThemeModes.LIGHT | EThemeModes.DARK {
     return isDarkMode ? EThemeModes.DARK : EThemeModes.LIGHT;
+  }
+
+  // ✅ NEW: Get actual current mode (not just setting)
+  isCurrentlyDark(): boolean {
+    return this.isDarkMode();
   }
 
   private updateMode(isDarkMode: boolean): void {
@@ -105,8 +144,9 @@ export class DarkModeService implements OnDestroy {
   }
 
   private getDarkModeQuery(): MediaQueryList | undefined {
-    return this.isBrowser ?
-      this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)') : undefined;
+    return this.isBrowser
+      ? this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)')
+      : undefined;
   }
 
   private handleSystemChanges(addListener: boolean): void {
@@ -120,4 +160,3 @@ export class DarkModeService implements OnDestroy {
     }
   }
 }
-

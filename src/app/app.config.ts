@@ -1,10 +1,10 @@
+// src/app/app.config.ts
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
   APP_INITIALIZER,
   PLATFORM_ID,
-  inject,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { provideRouter } from '@angular/router';
@@ -13,8 +13,9 @@ import {
   withFetch,
   withInterceptors,
 } from '@angular/common/http';
-import { DarkModeService } from '@core/services/darkmode.service'; // Add this import
+import { DarkModeService } from '@core/services/darkmode.service';
 import { errorInterceptor } from '@core/interceptors/error-interceptor';
+import { authInterceptor } from '@core/interceptors/auth.interceptor';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -22,9 +23,10 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withFetch(), withInterceptors([errorInterceptor])),
-
-    // Fixed APP_INITIALIZER
+    provideHttpClient(
+      withFetch(),
+      withInterceptors([authInterceptor, errorInterceptor]),
+    ),
     {
       provide: APP_INITIALIZER,
       useFactory: initDarkModeFactory,
@@ -34,10 +36,9 @@ export const appConfig: ApplicationConfig = {
   ],
 };
 
-// Move factory to top-level function (SSR-safe)
 export function initDarkModeFactory(
   darkModeService: DarkModeService,
-  platformId: Object
+  platformId: Object,
 ) {
   return () => {
     if (isPlatformBrowser(platformId)) {
