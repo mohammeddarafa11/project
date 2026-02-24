@@ -1,5 +1,5 @@
 // src/app/shared/components/app-sidebar/app-sidebar.component.ts
-import { Component, input, output, computed } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { DarkModeService } from '@core/services/darkmode.service';
 import { LayoutModule } from '@shared/components/layout/layout.module';
@@ -37,35 +37,40 @@ export class AppSidebarComponent {
   collapsed = input<boolean>(false);
   collapsedChange = output<boolean>();
 
-  // ✅ Add computed icon based on current theme
+  private router = inject(Router);
+  private darkModeService = inject(DarkModeService);
+  private authService = inject(AuthService);
+
+  // Theme icon computed from current dark mode state
   themeIcon = computed(() => {
     const isDark = this.darkModeService.isCurrentlyDark();
     return (isDark ? 'sun' : 'moon') as ZardIcon;
   });
 
+  // Organization data from AuthService
+  private organization = computed(() => this.authService.getOrganization());
+  orgName = computed(() => this.organization()?.name ?? 'Organization');
+  orgEmail = computed(() => this.organization()?.email ?? '');
+  orgInitials = computed(() => {
+    const name = this.orgName();
+    return name
+      .split(' ')
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .join('');
+  });
+
   mainMenuItems: MenuItem[] = [
     { icon: 'house' as ZardIcon, label: 'Home', route: '/dashboard' },
-    // { icon: 'inbox' as ZardIcon, label: 'Inbox', route: '/inbox' },
   ];
 
   workspaceMenuItems: MenuItem[] = [
     {
       icon: 'calendar' as ZardIcon,
       label: 'Events',
-      submenu: [
-        { label: 'All Events', route: '/events' },
-        { label: 'Create Event', route: '/events/create' },
-      ],
+      route: '/events',
     },
-    // { icon: 'folder' as ZardIcon, label: 'Categories', route: '/categories' },
-    // { icon: 'search' as ZardIcon, label: 'Search', route: '/search' },
   ];
-
-  constructor(
-    private router: Router,
-    private darkModeService: DarkModeService,
-    private authService: AuthService,
-  ) {}
 
   navigateTo(route: string) {
     if (route) {

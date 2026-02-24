@@ -46,54 +46,20 @@
       <z-sidebar-group-label>Workspace</z-sidebar-group-label>
     }
     @for (item of workspaceMenuItems; track item.label) {
-      @if (item.submenu) {
-        <button
-          type="button"
-          z-button
-          zType="ghost"
-          z-menu
-          [zMenuTriggerFor]="submenu"
-          zPlacement="rightTop"
-          [class]="collapsed() ? 'justify-center' : 'justify-start'"
-          [zTooltip]="collapsed() ? item.label : null"
-          zPosition="right"
-        >
-          <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
-          @if (!collapsed()) {
-            <span class="flex-1 text-left">{{ item.label }}</span>
-            <z-icon zType="chevron-right" />
-          }
-        </button>
-
-        <ng-template #submenu>
-          <div z-menu-content class="w-48">
-            @for (subitem of item.submenu; track subitem.label) {
-              <button
-                type="button"
-                z-menu-item
-                (click)="navigateTo(subitem.route!)"
-              >
-                {{ subitem.label }}
-              </button>
-            }
-          </div>
-        </ng-template>
-      } @else {
-        <button
-          type="button"
-          z-button
-          zType="ghost"
-          [class]="collapsed() ? 'justify-center' : 'justify-start'"
-          [zTooltip]="collapsed() ? item.label : ''"
-          zPosition="right"
-          (click)="navigateTo(item.route!)"
-        >
-          <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
-          @if (!collapsed()) {
-            <span>{{ item.label }}</span>
-          }
-        </button>
-      }
+      <button
+        type="button"
+        z-button
+        zType="ghost"
+        [class]="collapsed() ? 'justify-center' : 'justify-start'"
+        [zTooltip]="collapsed() ? item.label : ''"
+        zPosition="right"
+        (click)="navigateTo(item.route!)"
+      >
+        <z-icon [zType]="item.icon" [class]="collapsed() ? '' : 'mr-2'" />
+        @if (!collapsed()) {
+          <span>{{ item.label }}</span>
+        }
+      </button>
     }
   </z-sidebar-group>
 
@@ -105,28 +71,23 @@
       zPlacement="rightBottom"
       class="hover:bg-accent flex cursor-pointer items-center justify-center gap-2 rounded-md p-2"
     >
-      <z-avatar
-        zSrc="https://zardui.com/images/avatar/imgs/avatar_image.jpg"
-        zAlt="User"
-      />
+      <!-- Avatar with initials fallback -->
+      <div
+        class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0"
+      >
+        {{ orgInitials() }}
+      </div>
       @if (!collapsed()) {
-        <div>
-          <span class="font-medium">zardui</span>
-          <div class="text-xs">test@zardui.com</div>
+        <div class="min-w-0 flex-1">
+          <span class="font-medium block truncate">{{ orgName() }}</span>
+          <div class="text-xs text-muted-foreground truncate">{{ orgEmail() }}</div>
         </div>
-        <z-icon zType="chevrons-up-down" class="ml-auto" />
+        <z-icon zType="chevrons-up-down" class="ml-auto shrink-0" />
       }
     </div>
 
     <ng-template #userMenu>
       <div z-menu-content class="w-48">
-        <!-- <button type="button" z-menu-item>
-          <z-icon zType="user" class="mr-2" />Profile
-        </button>
-        <button type="button" z-menu-item>
-          <z-icon zType="settings" class="mr-2" />Settings
-        </button> -->
-        <!-- <z-divider zSpacing="sm" /> -->
         <button type="button" z-menu-item (click)="logout()">
           <z-icon zType="log-out" class="mr-2" />Logout
         </button>

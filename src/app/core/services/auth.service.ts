@@ -197,7 +197,9 @@ export class AuthService {
   }
 
   getToken(): string | null {
+    
     return localStorage.getItem('auth_token');
+
   }
 
   getRole(): UserRole | null {

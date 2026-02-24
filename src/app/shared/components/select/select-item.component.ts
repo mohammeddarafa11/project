@@ -53,7 +53,7 @@ interface SelectHost {
     '[attr.aria-selected]': 'isSelected()',
     '(click)': 'onClick()',
     '(mouseenter)': 'onMouseEnter()',
-    '(keydown.{tab}.prevent)': 'noopFn',
+    '(keydown.{tab}.prevent)': 'noopFun',
   },
 })
 export class ZardSelectItemComponent {

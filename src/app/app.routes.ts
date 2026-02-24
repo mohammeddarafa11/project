@@ -12,7 +12,7 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./features/dashboard/dashboard').then((m) => m.Dashboard),
-    canActivate: [authGuard], // ✅ UNCOMMENTED - Auth guard is now active
+    canActivate: [authGuard],
     children: [
       {
         path: 'dashboard',
@@ -23,36 +23,10 @@ export const routes: Routes = [
       },
       {
         path: 'events',
-        children: [
-          {
-            path: '',
-            loadComponent: () =>
-              import('./features/events/event-list/event-list').then(
-                (m) => m.EventListComponent,
-              ),
-          },
-          {
-            path: 'create',
-            loadComponent: () =>
-              import('./features/events/create-event/create-event').then(
-                (m) => m.CreateEventComponent,
-              ),
-          },
-          {
-            path: 'view/:id', // ✅ ADDED - View event route
-            loadComponent: () =>
-              import('./features/events/view-event/view-event').then(
-                (m) => m.ViewEventComponent,
-              ),
-          },
-          {
-            path: 'edit/:id',
-            loadComponent: () =>
-              import('./features/events/edit-event/edit-event').then(
-                (m) => m.EditEventComponent,
-              ),
-          },
-        ],
+        loadComponent: () =>
+          import('./features/events/events-page/events-page').then(
+            (m) => m.EventsPageComponent,
+          ),
       },
     ],
   },
