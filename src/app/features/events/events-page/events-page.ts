@@ -134,13 +134,13 @@ interface StatCard {
          @for (event of events(); track event.id) {
            <div
              z-card
-            class="overflow-hidden hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            class="border border-border rounded-3xl hover:shadow-md transition-shadow duration-200 cursor-pointer"
              (click)="openViewModal(event)"
            >
             <div class="flex flex-col sm:flex-row">
 
-               <!-- Thumbnail -->
-              <div class="w-full sm:w-44 sm:shrink-0">
+              <!-- Thumbnail -->
+              <div class="w-full sm:w-44 sm:shrink-0 rounded-3xl overflow-hidden sm:ms-4 sm:my-4">
                  @if (event.event_img_url) {
                   <img
                     [src]="event.event_img_url"
