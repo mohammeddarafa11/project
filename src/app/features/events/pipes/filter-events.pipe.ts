@@ -1,23 +1,28 @@
 // src/app/features/events/pipes/filter-events.pipe.ts
 import { Pipe, PipeTransform } from '@angular/core';
-import { Event as EventModel, EventType } from '@core/models/event.model';
+import { Event as EventModel } from '@core/models/event.model';
 
-export type EventTypeFilter = 'all' | 'online' | 'inperson';
-export type EventStatusFilter = 'all' | 'upcoming' | 'past';
+export type EventLocationFilter  = 'all' | 'online' | 'inperson';
+export type EventStatusFilter    = 'all' | 'upcoming' | 'past';
+export type EventVisibilityFilter = 'all' | 'public' | 'private';
+
+// Keep the old name as an alias so existing code doesn't break
+export type EventTypeFilter = EventLocationFilter;
 
 export interface EventFilters {
-  search: string;
-  eventType: EventTypeFilter;
-  status: EventStatusFilter;
+  search:     string;
+  eventType:  EventLocationFilter;   // online / inperson  → event_location_type
+  visibility: EventVisibilityFilter; // public / private   → event_type
+  status:     EventStatusFilter;
   categoryId: number | null;
-  /** Date object or null */
-  dateFrom: Date | null;
-  dateTo:   Date | null;
+  dateFrom:   Date | null;
+  dateTo:     Date | null;
 }
 
 export const DEFAULT_FILTERS: EventFilters = {
   search:     '',
   eventType:  'all',
+  visibility: 'all',
   status:     'all',
   categoryId: null,
   dateFrom:   null,
@@ -33,30 +38,35 @@ export class FilterEventsPipe implements PipeTransform {
   transform(events: EventModel[], filters: EventFilters): EventModel[] {
     if (!events?.length) return [];
 
-    const now = new Date();
+    const now    = new Date();
     const search = filters.search.trim().toLowerCase();
 
     return events.filter((event) => {
-      // --- Search ---
+
+      // ── Search ────────────────────────────────────────────────────────────
       if (search) {
         const inTitle = event.title?.toLowerCase().includes(search);
         const inDesc  = event.description?.toLowerCase().includes(search);
         if (!inTitle && !inDesc) return false;
       }
 
-      // --- Event type ---
-      if (filters.eventType === 'online' && event.event_type !== EventType.Online) return false;
-      if (filters.eventType === 'inperson' && event.event_type !== EventType.InPerson) return false;
+      // ── Location format  (event_location_type: 0=Online, 1=Offline) ──────
+      if (filters.eventType === 'online'   && event.event_location_type !== 0) return false;
+      if (filters.eventType === 'inperson' && event.event_location_type !== 1) return false;
 
-      // --- Status ---
+      // ── Visibility  (event_type: 0=Public, 1=Private) ────────────────────
+      if (filters.visibility === 'public'  && event.event_type !== 0) return false;
+      if (filters.visibility === 'private' && event.event_type !== 1) return false;
+
+      // ── Status ───────────────────────────────────────────────────────────
       const isUpcoming = new Date(event.start_time) > now;
       if (filters.status === 'upcoming' && !isUpcoming) return false;
       if (filters.status === 'past'     &&  isUpcoming) return false;
 
-      // --- Category ---
+      // ── Category ─────────────────────────────────────────────────────────
       if (filters.categoryId !== null && event.categoryId !== filters.categoryId) return false;
 
-      // --- Date range ---
+      // ── Date range ───────────────────────────────────────────────────────
       const eventDate = new Date(event.start_time);
       if (filters.dateFrom) {
         const from = new Date(filters.dateFrom);

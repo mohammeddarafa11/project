@@ -20,12 +20,7 @@ import { toast } from 'ngx-sonner';
 import { EventService } from '@core/services/event.service';
 import { CategoryService, Category } from '@core/services/category';
 import { AuthService } from '@core/services/auth.service';
-import {
-  Event as EventModel,
-  EventType,
-  UpdateEventDto,
-} from '@core/models/event.model';
-
+import { Event as EventModel, EventType, EventLocationType, UpdateEventDto } from '@core/models/event.model';
 @Component({
   selector: 'app-edit-event-modal',
   standalone: true,
@@ -564,19 +559,21 @@ export class EditEventModalComponent implements OnInit {
   }
 
   ngOnInit() {
+    if (!this.event) return;
     this.initForm();
     this.loadCategories();
   }
 
   private initForm() {
     const e = this.event();
-    this.isOnline.set(e.event_type === EventType.Online);
+    this.isOnline.set(e.event_location_type === EventLocationType.Online);
     this.eventForm = this.fb.group({
       title: [e.title, [Validators.required, Validators.minLength(3)]],
       description: [e.description, Validators.required],
       start_time: [this.toLocal(e.start_time), Validators.required],
       end_time: [this.toLocal(e.end_time), Validators.required],
       event_type: [e.event_type, Validators.required],
+      event_location_type: [e.event_location_type ?? 0, Validators.required],
       categoryId: [e.categoryId, Validators.required],
       city: [e.city ?? ''],
       region: [e.region ?? ''],
@@ -585,7 +582,7 @@ export class EditEventModalComponent implements OnInit {
     });
 
     this.eventForm.get('event_type')?.valueChanges.subscribe((v) => {
-      this.isOnline.set(Number(v) === EventType.Online);
+      this.isOnline.set(Number(v) === EventLocationType.Online);
       this.updateValidators();
     });
     this.updateValidators();
@@ -644,20 +641,22 @@ export class EditEventModalComponent implements OnInit {
     this.submitting.set(true);
     const v = this.eventForm.value;
     const newCategoryId = Number(v.categoryId);
+// Around line 643 — add event_location_type to the dto object
 
-    const dto: UpdateEventDto = {
-      title: v.title,
-      description: v.description,
-      event_img_url: v.event_img_url || '',
-      start_time: new Date(v.start_time).toISOString(),
-      end_time: new Date(v.end_time).toISOString(),
-      event_type: Number(v.event_type),
-      city: v.city || '',
-      region: v.region || '',
-      online_url: v.online_url || '',
-      categoryId: newCategoryId,
-      organizationId: org.id,
-    };
+const dto: UpdateEventDto = {
+  title:               v.title,
+  description:         v.description,
+  event_img_url:       v.event_img_url       || null,
+  start_time:          new Date(v.start_time).toISOString(),
+  end_time:            new Date(v.end_time).toISOString(),
+  event_type:          Number(v.event_type),
+  event_location_type: Number(v.event_location_type),  // ← add this line
+  city:                v.city                || null,
+  region:              v.region              || null,
+  online_url:          v.online_url          || null,
+  categoryId:          Number(v.categoryId),
+  organizationId:      Number(v.organizationId),
+};
 
     this.eventService.updateEvent(this.event().id, dto).subscribe({
       next: () => {
