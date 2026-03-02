@@ -3,7 +3,7 @@ import {
   Component, input, output, ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { Event as EventModel, EventType } from '@core/models/event.model';
+import { Event as EventModel, EventLocationType, EventType } from '@core/models/event.model';
 
 @Component({
   selector: 'app-view-event-modal',
@@ -21,12 +21,10 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
     .modal-enter { animation: modal-in .28s cubic-bezier(.22,1,.36,1) both }
     .fade-in     { animation: fade-in  .3s ease both }
 
-    /* Thin scrollbar */
     .thin-scroll::-webkit-scrollbar { width: 3px; }
     .thin-scroll::-webkit-scrollbar-track { background: transparent; }
     .thin-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 99px; }
 
-    /* Info tile hover */
     .info-tile { transition: background .15s, border-color .15s; }
     .info-tile:hover { background: rgba(255,255,255,.04) !important; }
   `],
@@ -53,18 +51,16 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
            class="w-full h-full object-cover fade-in"
            (error)="onImgErr($event)"/>
     } @else {
-      <!-- Deterministic gradient placeholder -->
       <div class="w-full h-full" [style]="heroGradient()">
         <div class="absolute inset-0"
              style="background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,255,255,.03) 10px,rgba(255,255,255,.03) 20px)"></div>
       </div>
     }
 
-    <!-- Dark overlay for text legibility -->
     <div class="absolute inset-0"
          style="background:linear-gradient(to top,rgba(15,15,17,1) 0%,rgba(15,15,17,.5) 40%,transparent 80%)"></div>
 
-    <!-- Badges overlaid on image -->
+    <!-- Badges -->
     <div class="absolute bottom-3.5 left-4 flex items-center gap-2">
       @if (isUpcoming()) {
         <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
@@ -79,7 +75,7 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
         </span>
       }
 
-      @if (event().event_type === EventType.Online) {
+      @if (event().event_location_type === EventLocationType.Online) {
         <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
               style="background:rgba(245,158,11,.14);color:#f59e0b;border:1px solid rgba(245,158,11,.25)">
           💻 Online
@@ -112,7 +108,7 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
       <div class="space-y-1.5">
         @if (event().category?.name) {
           <span class="text-[11px] font-semibold tracking-[.12em] uppercase text-amber-400/80">
-            {{ event().category.name }}
+            {{ event().category?.name }}
           </span>
         }
         <h2 class="text-2xl font-bold text-white leading-tight tracking-tight">
@@ -124,7 +120,7 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
               <path stroke-linecap="round" stroke-linejoin="round"
                     d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
             </svg>
-            {{ event().organization.name }}
+            {{ event().organization?.name }}
           </p>
         }
       </div>
@@ -132,7 +128,6 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
       <!-- Description -->
       <p class="text-[14px] text-zinc-400 leading-relaxed">{{ event().description }}</p>
 
-      <!-- Divider -->
       <div class="h-px" style="background:rgba(255,255,255,.06)"></div>
 
       <!-- Info tiles grid -->
@@ -162,14 +157,14 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
 
         <!-- Location / Online -->
         <div class="info-tile col-span-2 sm:col-span-1 flex items-start gap-3.5 p-4 rounded-2xl border"
-             [style]="event().event_type === EventType.Online
+             [style]="event().event_location_type === EventLocationType.Online
                ? 'background:rgba(245,158,11,.04);border-color:rgba(245,158,11,.15)'
                : 'background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.05)'">
           <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-               [style]="event().event_type === EventType.Online
+               [style]="event().event_location_type === EventLocationType.Online
                  ? 'background:rgba(245,158,11,.12)'
                  : 'background:rgba(99,102,241,.12)'">
-            @if (event().event_type === EventType.Online) {
+            @if (event().event_location_type === EventLocationType.Online) {
               <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
                       d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -184,9 +179,9 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
           </div>
           <div class="min-w-0">
             <p class="text-[10px] font-semibold tracking-widest uppercase text-zinc-600 mb-1">
-              {{ event().event_type === EventType.Online ? 'Meeting Link' : 'Location' }}
+              {{ event().event_location_type === EventLocationType.Online ? 'Meeting Link' : 'Location' }}
             </p>
-            @if (event().event_type === EventType.Online) {
+            @if (event().event_location_type === EventLocationType.Online) {
               @if (event().online_url) {
                 <a [href]="event().online_url" target="_blank" rel="noopener noreferrer"
                    class="text-[13px] font-semibold text-amber-400 hover:text-amber-300
@@ -204,9 +199,9 @@ import { Event as EventModel, EventType } from '@core/models/event.model';
               <p class="text-[14px] font-semibold text-white">
                 {{ event().city }}@if (event().region) {, {{ event().region }}}
               </p>
-              @if (event().name_of_place || event().street) {
+              @if (event().nameOfPlace || event().street) {
                 <p class="text-[12px] text-zinc-500 mt-0.5 truncate">
-                  {{ event().name_of_place }}@if (event().street) { · {{ event().street }}}
+                  {{ event().nameOfPlace }}@if (event().street) { · {{ event().street }}}
                 </p>
               }
             }
@@ -248,6 +243,7 @@ export class ViewEventModalComponent {
   edit  = output<void>();
   close = output<void>();
 
+  readonly EventLocationType = EventLocationType;
   readonly EventType = EventType;
 
   isUpcoming() { return new Date(this.event().start_time) > new Date(); }
