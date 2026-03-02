@@ -86,8 +86,6 @@ type DialogStep =
             </button>
           </div>
 
-
-
         </div>
       }
 
@@ -463,7 +461,9 @@ type DialogStep =
     </div>
   `,
   styles: [`
-    /* ── TOKENS ── */
+    /* ═══════════════════════════════════════════
+       TOKENS
+    ═══════════════════════════════════════════ */
     :host {
       --bg:        #09090c;
       --bg2:       #111116;
@@ -479,23 +479,27 @@ type DialogStep =
       --fb: 'Plus Jakarta Sans', sans-serif;
       --fm: 'DM Mono', monospace;
       display: block;
+      /* fill the dialog on any screen size */
+      width: 100%;
     }
 
-    /* ── WRAPPER ── */
+    /* ═══════════════════════════════════════════
+       WRAPPER  — mobile-first: full width, no min-width
+    ═══════════════════════════════════════════ */
     .es-auth {
       position: relative;
+      width: 100%;
       background: var(--bg);
       color: var(--text);
       font-family: var(--fb);
       overflow: hidden;
-      min-width: 360px;
     }
 
     /* ambient glow */
     .es-auth__glow {
       position: absolute;
       top: -40%; left: -30%;
-      width: 400px; height: 400px;
+      width: 260px; height: 260px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(255,68,51,.07) 0%, transparent 65%);
       pointer-events: none; z-index: 0;
@@ -509,11 +513,14 @@ type DialogStep =
       pointer-events: none; z-index: 0;
     }
 
-    /* ── PANE ── */
+    /* ═══════════════════════════════════════════
+       PANE  — tighter padding on small screens
+    ═══════════════════════════════════════════ */
     .es-auth__pane {
       position: relative; z-index: 1;
-      padding: 2rem 1.75rem 2rem;
-      display: flex; flex-direction: column; gap: 1.5rem;
+      /* mobile: compact padding */
+      padding: 1.25rem 1rem 1.5rem;
+      display: flex; flex-direction: column; gap: 1.1rem;
     }
 
     /* entrance animation */
@@ -521,16 +528,18 @@ type DialogStep =
       animation: pane-in .35s cubic-bezier(.2,.8,.4,1) both;
     }
     @keyframes pane-in {
-      from { opacity: 0; transform: translateY(12px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── BRAND ── */
+    /* ═══════════════════════════════════════════
+       BRAND
+    ═══════════════════════════════════════════ */
     .es-auth__brand {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 8px;
     }
     .es-auth__logo-ring {
-      width: 40px; height: 40px;
+      width: 36px; height: 36px;
       border: 1px solid rgba(255,68,51,.4);
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -550,62 +559,73 @@ type DialogStep =
     }
     .es-auth__logo-name {
       font-family: var(--fd);
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       letter-spacing: .06em;
       color: var(--text);
     }
 
-    /* ── HEAD ── */
+    /* ═══════════════════════════════════════════
+       HEAD
+    ═══════════════════════════════════════════ */
     .es-auth__head {
-      display: flex; flex-direction: column; gap: .5rem;
+      display: flex; flex-direction: column; gap: .4rem;
     }
     .es-auth__title {
       font-family: var(--fd);
-      font-size: 2.2rem;
+      /* mobile: slightly smaller */
+      font-size: 1.9rem;
       letter-spacing: .04em;
       color: var(--text);
       margin: 0;
       line-height: 1;
     }
     .es-auth__sub {
-      font-size: .88rem;
+      font-size: .84rem;
       color: var(--muted);
-      line-height: 1.65;
+      line-height: 1.6;
       margin: 0;
       font-weight: 300;
     }
     .es-auth__role-badge {
-      display: inline-flex; align-items: center; gap: 7px;
+      display: inline-flex; align-items: center; gap: 6px;
       width: fit-content;
-      padding: 4px 12px;
+      padding: 3px 10px;
       background: var(--coral-dim);
       border: 1px solid rgba(255,68,51,.25);
       border-radius: 100px;
       font-family: var(--fm);
-      font-size: .66rem;
+      font-size: .62rem;
       letter-spacing: .1em;
       text-transform: uppercase;
       color: var(--coral);
     }
 
-    /* ── ACTIONS (welcome) ── */
+    /* ═══════════════════════════════════════════
+       ACTIONS (welcome)
+    ═══════════════════════════════════════════ */
     .es-auth__actions {
-      display: flex; flex-direction: column; gap: .75rem;
+      display: flex; flex-direction: column; gap: .65rem;
     }
 
-    /* ── BUTTONS ── */
+    /* ═══════════════════════════════════════════
+       BUTTONS
+    ═══════════════════════════════════════════ */
     .es-btn-primary {
       width: 100%;
       display: inline-flex; align-items: center; justify-content: space-between;
-      padding: .82rem 1.1rem .82rem 1.4rem;
+      /* mobile: slightly less padding */
+      padding: .75rem 1rem .75rem 1.2rem;
       background: var(--coral); color: #fff;
-      border: none; border-radius: 12px;
-      font-family: var(--fb); font-weight: 700; font-size: .92rem;
+      border: none; border-radius: 11px;
+      font-family: var(--fb); font-weight: 700; font-size: .88rem;
       letter-spacing: .02em;
       cursor: pointer;
       transition: box-shadow .25s, transform .18s, opacity .2s;
-      box-shadow: 0 0 28px rgba(255,68,51,.25);
+      box-shadow: 0 0 24px rgba(255,68,51,.22);
       position: relative; overflow: hidden;
+      /* prevent tap highlight on mobile */
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .es-btn-primary::before {
       content: ''; position: absolute; inset: 0;
@@ -613,14 +633,17 @@ type DialogStep =
       pointer-events: none;
     }
     .es-btn-primary:hover:not(:disabled) {
-      box-shadow: 0 0 50px rgba(255,68,51,.45);
+      box-shadow: 0 0 44px rgba(255,68,51,.42);
       transform: translateY(-1px);
+    }
+    .es-btn-primary:active:not(:disabled) {
+      transform: translateY(0) scale(.98);
     }
     .es-btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
     .es-btn-primary__icon {
       display: flex; align-items: center; justify-content: center;
-      width: 28px; height: 28px;
-      background: rgba(255,255,255,.18); border-radius: 8px;
+      width: 26px; height: 26px;
+      background: rgba(255,255,255,.18); border-radius: 7px;
       font-size: .8rem; flex-shrink: 0;
       transition: transform .2s;
     }
@@ -630,26 +653,32 @@ type DialogStep =
     .es-btn-ghost {
       width: 100%;
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: .82rem 1.4rem;
+      padding: .75rem 1.2rem;
       background: transparent; color: var(--text);
-      border: 1px solid var(--border-hi); border-radius: 12px;
-      font-family: var(--fb); font-weight: 500; font-size: .9rem;
+      border: 1px solid var(--border-hi); border-radius: 11px;
+      font-family: var(--fb); font-weight: 500; font-size: .88rem;
       cursor: pointer;
       transition: border-color .22s, background .22s, color .22s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .es-btn-ghost:hover {
       border-color: rgba(255,68,51,.35);
       background: var(--coral-dim);
       color: #ff7060;
     }
+    .es-btn-ghost:active { background: rgba(255,68,51,.15); }
 
     /* back btn */
     .es-back-btn {
-      display: inline-flex; align-items: center; gap: 6px;
+      display: inline-flex; align-items: center; gap: 5px;
       background: none; border: none; padding: 0;
-      font-family: var(--fb); font-size: .8rem; font-weight: 500;
+      font-family: var(--fb); font-size: .78rem; font-weight: 500;
       color: var(--muted); cursor: pointer;
       transition: color .2s; width: fit-content;
+      /* larger tap target on mobile */
+      min-height: 36px;
+      -webkit-tap-highlight-color: transparent;
     }
     .es-back-btn:hover { color: var(--text); }
 
@@ -659,62 +688,80 @@ type DialogStep =
       font-family: var(--fb); font-size: inherit; font-weight: 600;
       color: var(--coral); cursor: pointer;
       transition: opacity .2s;
+      -webkit-tap-highlight-color: transparent;
     }
     .es-link:hover { opacity: .8; }
     .es-link--sm { font-size: .78rem; font-weight: 500; }
 
-
-
-    /* ── ROLE CARDS ── */
-    .es-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+    /* ═══════════════════════════════════════════
+       ROLE CARDS  — stacked on mobile, 2-col on sm+
+    ═══════════════════════════════════════════ */
+    .es-role-grid {
+      display: grid;
+      /* mobile: full-width stack */
+      grid-template-columns: 1fr;
+      gap: .75rem;
+    }
     .es-role-card {
       position: relative;
-      padding: 1.25rem 1rem;
+      padding: 1rem .9rem;
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 13px;
       cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: .65rem;
+      display: flex; flex-direction: column; align-items: center; gap: .55rem;
       text-align: center;
       transition: border-color .22s, background .22s, transform .18s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .es-role-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+    .es-role-card:active { transform: scale(.98); }
     .es-role-card--active {
       border-color: rgba(255,68,51,.55) !important;
       background: var(--coral-dim) !important;
-      box-shadow: 0 0 22px rgba(255,68,51,.12);
+      box-shadow: 0 0 18px rgba(255,68,51,.1);
     }
     .es-role-card__check {
-      position: absolute; top: .75rem; right: .75rem;
+      position: absolute; top: .65rem; right: .65rem;
       color: var(--coral); opacity: 0;
       transition: opacity .2s;
     }
     .es-role-card__check--on { opacity: 1; }
     .es-role-card__icon {
-      width: 44px; height: 44px;
+      width: 40px; height: 40px;
       background: rgba(255,68,51,.1);
       border: 1px solid rgba(255,68,51,.18);
-      border-radius: 12px;
+      border-radius: 11px;
       display: flex; align-items: center; justify-content: center;
       color: var(--coral);
     }
     .es-role-card__title {
       font-family: var(--fd);
-      font-size: 1.1rem; letter-spacing: .04em;
+      font-size: 1.05rem; letter-spacing: .04em;
       color: var(--text); margin: 0;
     }
     .es-role-card__desc {
-      font-size: .72rem; color: var(--muted);
+      font-size: .7rem; color: var(--muted);
       margin: 0; font-weight: 300;
     }
 
-    /* ── FORM ── */
-    .es-form { display: flex; flex-direction: column; gap: 1rem; }
-    .es-field { display: flex; flex-direction: column; gap: .45rem; }
-    .es-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    /* ═══════════════════════════════════════════
+       FORM
+    ═══════════════════════════════════════════ */
+    .es-form { display: flex; flex-direction: column; gap: .85rem; }
+    .es-field { display: flex; flex-direction: column; gap: .4rem; }
+
+    /* mobile: stacked name fields by default */
+    .es-field-row {
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+
     .es-label-row { display: flex; align-items: center; justify-content: space-between; }
     .es-label {
-      font-size: .78rem; font-weight: 600;
+      font-size: .76rem; font-weight: 600;
       color: rgba(242,238,230,.75);
       letter-spacing: .02em;
     }
@@ -725,13 +772,17 @@ type DialogStep =
       width: 100%;
       background: var(--bg2) !important;
       border: 1px solid var(--border) !important;
-      border-radius: 10px !important;
+      border-radius: 9px !important;
       color: var(--text) !important;
       font-family: var(--fb) !important;
-      font-size: .88rem !important;
-      padding: .72rem 1rem !important;
+      /* mobile: 16px prevents iOS auto-zoom */
+      font-size: 1rem !important;
+      padding: .7rem .9rem !important;
       transition: border-color .22s, box-shadow .22s !important;
       outline: none !important;
+      /* mobile: full width, no overflow */
+      box-sizing: border-box !important;
+      -webkit-appearance: none;
     }
     .es-input:focus {
       border-color: rgba(255,68,51,.5) !important;
@@ -741,16 +792,18 @@ type DialogStep =
     .es-input--mono { font-family: var(--fm) !important; letter-spacing: .06em !important; }
 
     .es-field-error {
-      font-size: .72rem; color: var(--coral); margin: 0;
+      font-size: .7rem; color: var(--coral); margin: 0;
       font-weight: 500;
     }
 
-    /* ── ALERTS ── */
+    /* ═══════════════════════════════════════════
+       ALERTS
+    ═══════════════════════════════════════════ */
     .es-alert {
       display: flex; align-items: flex-start; gap: 8px;
-      padding: .75rem 1rem;
-      border-radius: 10px;
-      font-size: .82rem; line-height: 1.55;
+      padding: .65rem .9rem;
+      border-radius: 9px;
+      font-size: .8rem; line-height: 1.5;
     }
     .es-alert--error {
       background: rgba(255,68,51,.1);
@@ -763,27 +816,33 @@ type DialogStep =
       color: #4ade80;
     }
 
-    /* ── INFO STRIP ── */
+    /* ═══════════════════════════════════════════
+       INFO STRIP
+    ═══════════════════════════════════════════ */
     .es-info-strip {
-      display: flex; align-items: flex-start; gap: 9px;
-      padding: .75rem 1rem;
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: .65rem .9rem;
       background: rgba(240,180,41,.08);
       border: 1px solid rgba(240,180,41,.18);
-      border-radius: 10px;
-      font-size: .78rem; color: rgba(240,180,41,.9);
+      border-radius: 9px;
+      font-size: .76rem; color: rgba(240,180,41,.9);
       line-height: 1.5;
     }
     .es-info-strip__icon { flex-shrink: 0; margin-top: 1px; }
 
-    /* ── ALT LINK ── */
+    /* ═══════════════════════════════════════════
+       ALT LINK
+    ═══════════════════════════════════════════ */
     .es-auth__alt-link {
       text-align: center;
-      font-size: .82rem;
+      font-size: .8rem;
       color: var(--muted);
-      padding-top: .25rem;
+      padding-top: .15rem;
     }
 
-    /* ── ICONS ── */
+    /* ═══════════════════════════════════════════
+       ICONS
+    ═══════════════════════════════════════════ */
     .es-icon    { width: 16px; height: 16px; display: inline-flex; }
     .es-icon-sm { width: 14px; height: 14px; display: inline-flex; }
     .es-icon-lg { width: 20px; height: 20px; display: inline-flex; }
@@ -792,8 +851,69 @@ type DialogStep =
     .es-spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* divider (in case used externally) */
+    /* divider */
     z-divider { border-color: var(--border); }
+
+
+    /* ═══════════════════════════════════════════
+       BREAKPOINT: sm  ≥ 480px
+       — side-by-side name fields, 2-col role grid
+    ═══════════════════════════════════════════ */
+    @media (min-width: 480px) {
+      .es-auth__pane {
+        padding: 1.75rem 1.5rem 2rem;
+        gap: 1.35rem;
+      }
+
+      .es-auth__title { font-size: 2.1rem; }
+      .es-auth__sub   { font-size: .86rem; }
+
+      /* role cards: 2 columns */
+      .es-role-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: .85rem;
+      }
+
+      /* name fields side-by-side */
+      .es-field-row {
+        flex-direction: row;
+        gap: .75rem;
+      }
+
+      /* inputs can shrink back to design size */
+      .es-input { font-size: .88rem !important; }
+
+      .es-btn-primary { padding: .82rem 1.1rem .82rem 1.35rem; font-size: .92rem; }
+      .es-btn-ghost   { padding: .82rem 1.35rem; font-size: .9rem; }
+    }
+
+
+    /* ═══════════════════════════════════════════
+       BREAKPOINT: md  ≥ 640px
+       — restored desktop spacing & glow
+    ═══════════════════════════════════════════ */
+    @media (min-width: 640px) {
+      .es-auth__pane {
+        padding: 2rem 1.75rem 2rem;
+        gap: 1.5rem;
+      }
+
+      .es-auth__glow {
+        width: 400px; height: 400px;
+      }
+
+      .es-auth__logo-ring { width: 40px; height: 40px; }
+      .es-auth__logo-name { font-size: 1.5rem; }
+
+      .es-auth__title { font-size: 2.2rem; }
+
+      .es-role-card   { padding: 1.25rem 1rem; }
+
+      .es-form { gap: 1rem; }
+      .es-field { gap: .45rem; }
+
+      .es-btn-primary__icon { width: 28px; height: 28px; border-radius: 8px; }
+    }
   `],
 })
 export class AuthDialog {
