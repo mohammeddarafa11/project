@@ -8,6 +8,9 @@ import {
   signal,
   ChangeDetectionStrategy,
 } from '@angular/core';
+
+// 1. Import the enum at the top of the component file
+import { EventLocationType, EventType } from '@core/models/event.model';
 import { CommonModule, DatePipe } from '@angular/common';
 import { EventService }           from '@core/services/event.service';
 import { AuthService }            from '@core/services/auth.service';
@@ -716,11 +719,11 @@ interface Category { id: number; name: string; }
                   } @else {
                     <span class="ec-tag ec-tag--past">Ended</span>
                   }
-                  @if (event.event_location_type === 0) {
-                    <span class="ec-tag ec-tag--online">Online</span>
-                  } @else {
-                    <span class="ec-tag ec-tag--inperson">In-Person</span>
-                  }
+              @if (event.event_location_type === EventLocationType.Online) {
+  <span class="ec-tag ec-tag--online">Online</span>
+} @else {
+  <span class="ec-tag ec-tag--inperson">In-Person</span>
+}
                 </div>
 
                 <!-- 3-dot menu -->
@@ -761,11 +764,11 @@ interface Category { id: number; name: string; }
               <div>
                 <!-- Visibility + category pills -->
                 <div class="flex flex-wrap gap-1 mb-2">
-                  @if (event.event_type === 0) {
-                    <span class="ec-tag ec-tag--public">Public</span>
-                  } @else {
-                    <span class="ec-tag ec-tag--private">Private</span>
-                  }
+@if (event.event_type === EventType.Public) {
+  <span class="ec-tag ec-tag--public">Public</span>
+} @else {
+  <span class="ec-tag ec-tag--private">Private</span>
+}
                   @if (event.category?.name) {
                     <span class="ec-tag ec-tag--cat">{{ event.category?.name }}</span>
                   }
@@ -785,7 +788,7 @@ interface Category { id: number; name: string; }
                             d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    {{ event.event_location_type === 0 ? 'Online' : (event.city || 'TBD') }}
+                  {{ event.event_location_type === EventLocationType.Online ? 'Online' : (event.city || 'TBD') }}
                   </span>
                   <span class="ec-cta">View →</span>
                 </div>
@@ -820,6 +823,12 @@ export class EventsPageComponent implements OnInit {
   private filterPipe   = new FilterEventsPipe();
 
   // ── State ────────────────────────────────────────────────────────────────
+
+
+// 2. Expose the enum to the template inside the class body
+//    (Angular templates can't reference imported enums directly)
+readonly EventLocationType = EventLocationType;
+readonly EventType         = EventType;
   events          = signal<EventModel[]>([]);
   loading         = signal(false);
   orgId           = signal<number | null>(null);
