@@ -1,1123 +1,689 @@
 // src/app/features/auth/auth-dialog/auth-dialog.ts
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  FormBuilder,
-  FormGroup,
-  Validators,
-  ReactiveFormsModule,
-} from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ZardDialogRef } from '@shared/components/dialog/dialog-ref';
-import { ZardButtonComponent } from '@shared/components/button/button.component';
-import { ZardDividerComponent } from '@shared/components/divider/divider.component';
 import { ZardInputDirective } from '@shared/components/input/input.directive';
 import { ZardIconComponent } from '@shared/components/icon/icon.component';
 import { type ZardIcon } from '@shared/components/icon/icons';
+import { ZardDialogService } from '@shared/components/dialog/dialog.service';
 import {
-  AuthService,
-  UserRole,
-  RegisterDto,
-  LoginDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
+  AuthService, UserRole, RegisterDto, LoginDto,
+  ForgotPasswordDto, ResetPasswordDto, VerifyAccountDto,
 } from '@core/services/auth.service';
+import { CategorySelectSheet } from '../category-select-sheet/category-select-sheet';
 
-type DialogStep =
-  | 'welcome'
-  | 'role-selection'
-  | 'register'
-  | 'login'
-  | 'forgot-password'
-  | 'reset-password';
+type Step = 'welcome' | 'role-selection' | 'register' | 'verify'
+           | 'login-role-selection' | 'login' | 'forgot-password' | 'reset-password';
 
 @Component({
   selector: 'app-auth-dialog',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    ZardButtonComponent,
-    ZardDividerComponent,
-    ZardInputDirective,
-    ZardIconComponent,
-  ],
+  imports: [CommonModule, ReactiveFormsModule, ZardInputDirective, ZardIconComponent],
   template: `
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
-    <div class="es-auth">
+    <div class="ad-shell">
+      <!-- ambient glow -->
+      <div class="ad-glow" aria-hidden="true"></div>
+      <div class="ad-grain" aria-hidden="true"></div>
 
-      <!-- Ambient glow -->
-      <div class="es-auth__glow" aria-hidden="true"></div>
-      <div class="es-auth__noise" aria-hidden="true"></div>
-
-      <!-- ══════════ WELCOME ══════════ -->
+      <!-- ═══════════════════════ WELCOME ═══════════════════════ -->
       @if (step() === 'welcome') {
-        <div class="es-auth__pane es-anim-in">
-
-          <!-- Logo mark -->
-          <div class="es-auth__brand">
-            <div class="es-auth__logo-ring">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <circle cx="14" cy="14" r="13" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M8 10h12M8 14h8M8 18h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <div class="ad-pane" @.disabled>
+          <div class="ad-brand">
+            <div class="ad-brand-ring">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 2v4M18 2v4M3 10h18M3 6a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"/>
               </svg>
             </div>
-            <span class="es-auth__logo-name">Eventsora</span>
+            <span class="ad-brand-name">Eventsora</span>
           </div>
-
-          <div class="es-auth__head">
-            <h2 class="es-auth__title">Get Started</h2>
-            <p class="es-auth__sub">Create your account or log in to start building amazing events in Egypt.</p>
+          <div class="ad-head">
+            <h2 class="ad-title">Your events,<br/><span class="ad-title-stroke">your world.</span></h2>
+            <p class="ad-sub">Egypt's premier events platform — discover, create & attend.</p>
           </div>
-
-          <div class="es-auth__actions">
-            <button class="es-btn-primary" (click)="goToRoleSelection()">
-              <span>Sign Up</span>
-              <span class="es-btn-primary__icon">
-                <z-icon [zType]="icons.userPlus" class="es-icon" />
+          <div class="ad-stack">
+            <button class="ad-cta" (click)="goto('role-selection')">
+              <span>Create Account</span>
+              <span class="ad-cta-icon">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
               </span>
             </button>
-            <button class="es-btn-ghost" (click)="goToLogin()">
-              <z-icon [zType]="icons.logIn" class="es-icon-sm" />
-              Organizer Login
+            <button class="ad-ghost" (click)="goto('login-role-selection')">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M3 12h12"/></svg>
+              Sign In
             </button>
           </div>
-
         </div>
       }
 
-      <!-- ══════════ ROLE SELECTION ══════════ -->
+      <!-- ═══════════════════════ ROLE SELECTION (Register) ═══════════════════════ -->
       @if (step() === 'role-selection') {
-        <div class="es-auth__pane es-anim-in">
-
-          <button class="es-back-btn" (click)="backToWelcome()">
-            <z-icon [zType]="icons.arrowLeft" class="es-icon-sm" />
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('welcome')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-
-          <div class="es-auth__head">
-            <h2 class="es-auth__title">Choose Your Role</h2>
-            <p class="es-auth__sub">How do you want to use Eventsora?</p>
+          <div class="ad-head">
+            <div class="ad-step-label">Step 1 / 2 — Account type</div>
+            <h2 class="ad-title ad-title--sm">Join as…</h2>
           </div>
-
-          <div class="es-role-grid">
-            <!-- Organizer -->
-            <div class="es-role-card"
-                 [class.es-role-card--active]="selectedRole() === 'organizer'"
-                 (click)="selectRole('organizer')">
-              <div class="es-role-card__check" [class.es-role-card__check--on]="selectedRole() === 'organizer'">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
+          <div class="ad-roles">
+            <button class="ad-role" [class.ad-role--active]="regRole() === 'organizer'" (click)="setRegRole('organizer')">
+              <div class="ad-role-check"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+              <div class="ad-role-icon ad-role-icon--coral">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM16 3v4M8 3v4M3 11h18"/></svg>
               </div>
-              <div class="es-role-card__icon">
-                <z-icon [zType]="icons.briefcase" class="es-icon-lg" />
+              <strong class="ad-role-name">Organizer</strong>
+              <span class="ad-role-hint">Create & manage events</span>
+            </button>
+            <button class="ad-role" [class.ad-role--active]="regRole() === 'user'" (click)="setRegRole('user')">
+              <div class="ad-role-check"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+              <div class="ad-role-icon ad-role-icon--gold">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
               </div>
-              <h3 class="es-role-card__title">Organizer</h3>
-              <p class="es-role-card__desc">Create & manage events</p>
-            </div>
-
-            <!-- Attendee -->
-            <div class="es-role-card"
-                 [class.es-role-card--active]="selectedRole() === 'user'"
-                 (click)="selectRole('user')">
-              <div class="es-role-card__check" [class.es-role-card__check--on]="selectedRole() === 'user'">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
-              </div>
-              <div class="es-role-card__icon">
-                <z-icon [zType]="icons.user" class="es-icon-lg" />
-              </div>
-              <h3 class="es-role-card__title">Attendee</h3>
-              <p class="es-role-card__desc">Discover & join events</p>
-            </div>
+              <strong class="ad-role-name">Attendee</strong>
+              <span class="ad-role-hint">Discover & book events</span>
+            </button>
           </div>
-
-          <div class="es-auth__alt-link">
-            Already have an account?
-            <button class="es-link" (click)="goToLogin()">Login</button>
-          </div>
-
+          <div class="ad-divider-text">Already have an account? <button class="ad-link" (click)="goto('login-role-selection')">Sign in</button></div>
         </div>
       }
 
-      <!-- ══════════ REGISTER ══════════ -->
+      <!-- ═══════════════════════ REGISTER FORM ═══════════════════════ -->
       @if (step() === 'register') {
-        <div class="es-auth__pane es-anim-in">
-
-          <button class="es-back-btn" (click)="backToRoleSelection()">
-            <z-icon [zType]="icons.arrowLeft" class="es-icon-sm" />
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('role-selection')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-
-          <div class="es-auth__head">
-            <div class="es-auth__role-badge">
-              <z-icon [zType]="selectedRole() === 'organizer' ? icons.briefcase : icons.user" class="es-icon-sm" />
-              {{ selectedRole() === 'organizer' ? 'Organizer' : 'Attendee' }}
+          <div class="ad-head">
+            <div class="ad-badge" [class.ad-badge--gold]="regRole() === 'user'">
+              {{ regRole() === 'organizer' ? 'Organizer Account' : 'Attendee Account' }}
             </div>
-            <h2 class="es-auth__title">Create Account</h2>
-            <p class="es-auth__sub">Join Egypt's premier events platform</p>
+            <h2 class="ad-title ad-title--sm">Create account</h2>
           </div>
 
-          <form [formGroup]="registerForm" (ngSubmit)="onRegister()" class="es-form">
-
-            @if (selectedRole() === 'organizer') {
-              <div class="es-field">
-                <label class="es-label">Organization Name <span class="es-required">*</span></label>
-                <input z-input formControlName="name" type="text"
-                       placeholder="Your organization name"
-                       class="es-input" />
-                @if (registerForm.get('name')?.invalid && registerForm.get('name')?.touched) {
-                  <p class="es-field-error">Organization name is required</p>
-                }
+          <form [formGroup]="registerForm" (ngSubmit)="onRegister()" class="ad-form">
+            @if (regRole() === 'organizer') {
+              <div class="ad-field">
+                <label class="ad-label">Organization Name *</label>
+                <input z-input formControlName="name" type="text" placeholder="e.g. Cairo Creative Hub" class="ad-input"/>
+                @if (f('name').invalid && f('name').touched) { <span class="ad-ferr">Required</span> }
               </div>
             } @else {
-              <div class="es-field-row">
-                <div class="es-field">
-                  <label class="es-label">First Name <span class="es-required">*</span></label>
-                  <input z-input formControlName="firstName" type="text"
-                         placeholder="First name" class="es-input" />
-                  @if (registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched) {
-                    <p class="es-field-error">Required</p>
-                  }
+              <div class="ad-row">
+                <div class="ad-field">
+                  <label class="ad-label">First Name *</label>
+                  <input z-input formControlName="firstName" type="text" placeholder="Ahmed" class="ad-input"/>
+                  @if (f('firstName').invalid && f('firstName').touched) { <span class="ad-ferr">Required</span> }
                 </div>
-                <div class="es-field">
-                  <label class="es-label">Last Name <span class="es-required">*</span></label>
-                  <input z-input formControlName="lastName" type="text"
-                         placeholder="Last name" class="es-input" />
-                  @if (registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched) {
-                    <p class="es-field-error">Required</p>
-                  }
+                <div class="ad-field">
+                  <label class="ad-label">Last Name *</label>
+                  <input z-input formControlName="lastName" type="text" placeholder="Hassan" class="ad-input"/>
+                  @if (f('lastName').invalid && f('lastName').touched) { <span class="ad-ferr">Required</span> }
                 </div>
               </div>
             }
-
-            <div class="es-field">
-              <label class="es-label">Email <span class="es-required">*</span></label>
-              <input z-input formControlName="email" type="email"
-                     placeholder="you@example.com" class="es-input" />
-              @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
-                <p class="es-field-error">Valid email is required</p>
-              }
+            <div class="ad-field">
+              <label class="ad-label">Email *</label>
+              <input z-input formControlName="email" type="email" placeholder="you@example.com" class="ad-input"/>
+              @if (f('email').invalid && f('email').touched) { <span class="ad-ferr">Valid email required</span> }
+            </div>
+            <div class="ad-field">
+              <label class="ad-label">Password *</label>
+              <input z-input formControlName="password" type="password" placeholder="Min. 6 characters" class="ad-input"/>
+              @if (f('password').invalid && f('password').touched) { <span class="ad-ferr">Min. 6 characters</span> }
             </div>
 
-            <div class="es-field">
-              <label class="es-label">Password <span class="es-required">*</span></label>
-              <input z-input formControlName="password" type="password"
-                     placeholder="Min. 6 characters" class="es-input" />
-              @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
-                <p class="es-field-error">Password must be at least 6 characters</p>
-              }
-            </div>
+            @if (err()) { <div class="ad-alert ad-alert--err">{{ err() }}</div> }
+            @if (ok()) { <div class="ad-alert ad-alert--ok">{{ ok() }}</div> }
 
-            @if (errorMessage()) {
-              <div class="es-alert es-alert--error">
-                <z-icon [zType]="icons.alertCircle" class="es-icon-sm" />
-                {{ errorMessage() }}
-              </div>
-            }
-            @if (successMessage()) {
-              <div class="es-alert es-alert--success">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
-                {{ successMessage() }}
-              </div>
-            }
-
-            <button class="es-btn-primary" type="submit"
-                    [disabled]="registerForm.invalid || isSubmitting()">
-              @if (isSubmitting()) {
-                <z-icon [zType]="icons.loader" class="es-icon-sm es-spin" />
-                Creating Account…
-              } @else {
-                <span>Create Account</span>
-                <span class="es-btn-primary__icon">
-                  <z-icon [zType]="icons.userPlus" class="es-icon" />
-                </span>
-              }
+            <button type="submit" class="ad-cta" [class.ad-cta--gold]="regRole() === 'user'" [disabled]="registerForm.invalid || busy()">
+              @if (busy()) { <span class="ad-spin"></span> Creating… }
+              @else { <span>Create Account</span><span class="ad-cta-icon">→</span> }
             </button>
-
           </form>
-
-          <div class="es-auth__alt-link">
-            Already have an account?
-            <button class="es-link" (click)="goToLogin()">Login</button>
-          </div>
-
+          <div class="ad-divider-text">Have an account? <button class="ad-link" (click)="goto('login-role-selection')">Sign in</button></div>
         </div>
       }
 
-      <!-- ══════════ LOGIN ══════════ -->
+      <!-- ═══════════════════════ VERIFY EMAIL ═══════════════════════ -->
+      @if (step() === 'verify') {
+        <div class="ad-pane ad-anim">
+          <div class="ad-verify-hero">
+            <div class="ad-verify-orb">
+              <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/>
+              </svg>
+            </div>
+            <h2 class="ad-title ad-title--sm">Check your inbox</h2>
+            <p class="ad-sub">We sent a verification code to<br/><strong class="ad-em">{{ pendingEmail() }}</strong></p>
+          </div>
+
+          <form [formGroup]="verifyForm" (ngSubmit)="onVerify()" class="ad-form">
+            <div class="ad-field">
+              <label class="ad-label">Verification Code *</label>
+              <input z-input formControlName="code" type="text" maxlength="10"
+                     placeholder="Enter code" class="ad-input ad-input--code"
+                     autocomplete="one-time-code" inputmode="numeric"/>
+            </div>
+
+            @if (err()) { <div class="ad-alert ad-alert--err">{{ err() }}</div> }
+            @if (ok()) { <div class="ad-alert ad-alert--ok">{{ ok() }}</div> }
+
+            <button type="submit" class="ad-cta ad-cta--gold" [disabled]="verifyForm.invalid || busy()">
+              @if (busy()) { <span class="ad-spin"></span> Verifying… }
+              @else { <span>Verify & Continue</span><span class="ad-cta-icon">→</span> }
+            </button>
+          </form>
+          <div class="ad-divider-text">Wrong email? <button class="ad-link" (click)="goto('role-selection')">Go back</button></div>
+        </div>
+      }
+
+      <!-- ═══════════════════════ LOGIN ROLE ═══════════════════════ -->
+      @if (step() === 'login-role-selection') {
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('welcome')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Back
+          </button>
+          <div class="ad-head">
+            <h2 class="ad-title ad-title--sm">Welcome back</h2>
+            <p class="ad-sub">Who are you logging in as?</p>
+          </div>
+          <div class="ad-roles">
+            <button class="ad-role" [class.ad-role--active]="loginRole() === 'organizer'" (click)="setLoginRole('organizer')">
+              <div class="ad-role-check"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+              <div class="ad-role-icon ad-role-icon--coral">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM16 3v4M8 3v4M3 11h18"/></svg>
+              </div>
+              <strong class="ad-role-name">Organizer</strong>
+              <span class="ad-role-hint">Manage events</span>
+            </button>
+            <button class="ad-role" [class.ad-role--active]="loginRole() === 'user'" (click)="setLoginRole('user')">
+              <div class="ad-role-check"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+              <div class="ad-role-icon ad-role-icon--gold">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+              </div>
+              <strong class="ad-role-name">Attendee</strong>
+              <span class="ad-role-hint">Explore events</span>
+            </button>
+          </div>
+          <div class="ad-divider-text">New here? <button class="ad-link" (click)="goto('role-selection')">Sign up</button></div>
+        </div>
+      }
+
+      <!-- ═══════════════════════ LOGIN FORM ═══════════════════════ -->
       @if (step() === 'login') {
-        <div class="es-auth__pane es-anim-in">
-
-          <button class="es-back-btn" (click)="backToWelcome()">
-            <z-icon [zType]="icons.arrowLeft" class="es-icon-sm" />
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('login-role-selection')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-
-          <div class="es-auth__head">
-            <div class="es-auth__role-badge">
-              <z-icon [zType]="icons.briefcase" class="es-icon-sm" />
-              Organizer
+          <div class="ad-head">
+            <div class="ad-badge" [class.ad-badge--gold]="loginRole() === 'user'">
+              {{ loginRole() === 'organizer' ? 'Organizer' : 'Attendee' }}
             </div>
-            <h2 class="es-auth__title">Welcome Back</h2>
-            <p class="es-auth__sub">Log in to manage your events dashboard</p>
+            <h2 class="ad-title ad-title--sm">Sign in</h2>
           </div>
 
-          <!-- Info strip -->
-          <div class="es-info-strip">
-            <z-icon [zType]="icons.alertCircle" class="es-icon-sm es-info-strip__icon" />
-            <span>Only organizers can log in. Attendees can browse without an account.</span>
-          </div>
-
-          <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="es-form">
-
-            <div class="es-field">
-              <label class="es-label">Email</label>
-              <input z-input formControlName="email" type="email"
-                     placeholder="you@organization.com" class="es-input" />
-              @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
-                <p class="es-field-error">Valid email is required</p>
-              }
+          <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="ad-form">
+            <div class="ad-field">
+              <label class="ad-label">Email</label>
+              <input z-input formControlName="email" type="email" placeholder="you@example.com" class="ad-input"/>
+            </div>
+            <div class="ad-field">
+              <div class="ad-label-row">
+                <label class="ad-label">Password</label>
+                <button type="button" class="ad-link ad-link--sm" (click)="goto('forgot-password')">Forgot?</button>
+              </div>
+              <input z-input formControlName="password" type="password" placeholder="Your password" class="ad-input"/>
             </div>
 
-            <div class="es-field">
-              <div class="es-label-row">
-                <label class="es-label">Password</label>
-                <button type="button" class="es-link es-link--sm" (click)="goToForgotPassword()">
-                  Forgot password?
-                </button>
-              </div>
-              <input z-input formControlName="password" type="password"
-                     placeholder="Your password" class="es-input" />
-              @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
-                <p class="es-field-error">Password is required</p>
-              }
-            </div>
+            @if (err()) { <div class="ad-alert ad-alert--err">{{ err() }}</div> }
+            @if (ok()) { <div class="ad-alert ad-alert--ok">{{ ok() }}</div> }
 
-            @if (errorMessage()) {
-              <div class="es-alert es-alert--error">
-                <z-icon [zType]="icons.alertCircle" class="es-icon-sm" />
-                {{ errorMessage() }}
-              </div>
-            }
-            @if (successMessage()) {
-              <div class="es-alert es-alert--success">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
-                {{ successMessage() }}
-              </div>
-            }
-
-            <button class="es-btn-primary" type="submit"
-                    [disabled]="loginForm.invalid || isSubmitting()">
-              @if (isSubmitting()) {
-                <z-icon [zType]="icons.loader" class="es-icon-sm es-spin" />
-                Logging in…
-              } @else {
-                <span>Login as Organizer</span>
-                <span class="es-btn-primary__icon">
-                  <z-icon [zType]="icons.logIn" class="es-icon" />
-                </span>
-              }
+            <button type="submit" class="ad-cta" [class.ad-cta--gold]="loginRole() === 'user'"
+                    [disabled]="loginForm.invalid || busy()">
+              @if (busy()) { <span class="ad-spin"></span> Signing in… }
+              @else { <span>Sign in as {{ loginRole() === 'organizer' ? 'Organizer' : 'Attendee' }}</span><span class="ad-cta-icon">→</span> }
             </button>
-
           </form>
-
-          <div class="es-auth__alt-link">
-            Don't have an organizer account?
-            <button class="es-link" (click)="goToRoleSelection()">Sign up</button>
-          </div>
-
+          <div class="ad-divider-text">No account? <button class="ad-link" (click)="goto('role-selection')">Sign up</button></div>
         </div>
       }
 
-      <!-- ══════════ FORGOT PASSWORD ══════════ -->
+      <!-- ═══════════════════════ FORGOT ═══════════════════════ -->
       @if (step() === 'forgot-password') {
-        <div class="es-auth__pane es-anim-in">
-
-          <button class="es-back-btn" (click)="backToLogin()">
-            <z-icon [zType]="icons.arrowLeft" class="es-icon-sm" />
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('login')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-
-          <div class="es-auth__head">
-            <div class="es-auth__logo-ring es-auth__logo-ring--gold">
-              <z-icon [zType]="icons.mail" class="es-icon-lg" />
-            </div>
-            <h2 class="es-auth__title">Forgot Password</h2>
-            <p class="es-auth__sub">Enter your email and we'll send reset instructions</p>
+          <div class="ad-head">
+            <h2 class="ad-title ad-title--sm">Forgot password</h2>
+            <p class="ad-sub">Enter your email and we'll send reset instructions</p>
           </div>
-
-          <form [formGroup]="forgotPasswordForm" (ngSubmit)="onForgotPassword()" class="es-form">
-
-            <div class="es-field">
-              <label class="es-label">Email</label>
-              <input z-input formControlName="email" type="email"
-                     placeholder="you@organization.com" class="es-input" />
-              @if (forgotPasswordForm.get('email')?.invalid && forgotPasswordForm.get('email')?.touched) {
-                <p class="es-field-error">Valid email is required</p>
-              }
+          <form [formGroup]="forgotForm" (ngSubmit)="onForgot()" class="ad-form">
+            <div class="ad-field">
+              <label class="ad-label">Email</label>
+              <input z-input formControlName="email" type="email" placeholder="you@example.com" class="ad-input"/>
             </div>
-
-            @if (errorMessage()) {
-              <div class="es-alert es-alert--error">
-                <z-icon [zType]="icons.alertCircle" class="es-icon-sm" />
-                {{ errorMessage() }}
-              </div>
-            }
-            @if (successMessage()) {
-              <div class="es-alert es-alert--success">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
-                {{ successMessage() }}
-              </div>
-            }
-
-            <button class="es-btn-primary" type="submit"
-                    [disabled]="forgotPasswordForm.invalid || isSubmitting()">
-              @if (isSubmitting()) {
-                <z-icon [zType]="icons.loader" class="es-icon-sm es-spin" />
-                Sending…
-              } @else {
-                <span>Send Reset Link</span>
-                <span class="es-btn-primary__icon">
-                  <z-icon [zType]="icons.mail" class="es-icon" />
-                </span>
-              }
+            @if (err()) { <div class="ad-alert ad-alert--err">{{ err() }}</div> }
+            @if (ok()) { <div class="ad-alert ad-alert--ok">{{ ok() }}</div> }
+            <button type="submit" class="ad-cta" [disabled]="forgotForm.invalid || busy()">
+              @if (busy()) { <span class="ad-spin"></span> Sending… }
+              @else { <span>Send Reset Link</span><span class="ad-cta-icon">→</span> }
             </button>
-
           </form>
-
         </div>
       }
 
-      <!-- ══════════ RESET PASSWORD ══════════ -->
+      <!-- ═══════════════════════ RESET ═══════════════════════ -->
       @if (step() === 'reset-password') {
-        <div class="es-auth__pane es-anim-in">
-
-          <button class="es-back-btn" (click)="backToLogin()">
-            <z-icon [zType]="icons.arrowLeft" class="es-icon-sm" />
+        <div class="ad-pane ad-anim">
+          <button class="ad-back" (click)="goto('login')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-
-          <div class="es-auth__head">
-            <div class="es-auth__logo-ring es-auth__logo-ring--coral">
-              <z-icon [zType]="icons.key" class="es-icon-lg" />
-            </div>
-            <h2 class="es-auth__title">Reset Password</h2>
-            <p class="es-auth__sub">Enter the token from your email and your new password</p>
+          <div class="ad-head">
+            <h2 class="ad-title ad-title--sm">Reset password</h2>
           </div>
-
-          <form [formGroup]="resetPasswordForm" (ngSubmit)="onResetPassword()" class="es-form">
-
-            <div class="es-field">
-              <label class="es-label">Email</label>
-              <input z-input formControlName="email" type="email"
-                     placeholder="you@organization.com" class="es-input" />
-            </div>
-
-            <div class="es-field">
-              <label class="es-label">Reset Token</label>
-              <input z-input formControlName="token" type="text"
-                     placeholder="Token from your email" class="es-input es-input--mono" />
-            </div>
-
-            <div class="es-field">
-              <label class="es-label">New Password</label>
-              <input z-input formControlName="newPassword" type="password"
-                     placeholder="Min. 6 characters" class="es-input" />
-            </div>
-
-            @if (errorMessage()) {
-              <div class="es-alert es-alert--error">
-                <z-icon [zType]="icons.alertCircle" class="es-icon-sm" />
-                {{ errorMessage() }}
-              </div>
-            }
-            @if (successMessage()) {
-              <div class="es-alert es-alert--success">
-                <z-icon [zType]="icons.checkCircle" class="es-icon-sm" />
-                {{ successMessage() }}
-              </div>
-            }
-
-            <button class="es-btn-primary" type="submit"
-                    [disabled]="resetPasswordForm.invalid || isSubmitting()">
-              @if (isSubmitting()) {
-                <z-icon [zType]="icons.loader" class="es-icon-sm es-spin" />
-                Resetting…
-              } @else {
-                <span>Reset Password</span>
-                <span class="es-btn-primary__icon">
-                  <z-icon [zType]="icons.key" class="es-icon" />
-                </span>
-              }
+          <form [formGroup]="resetForm" (ngSubmit)="onReset()" class="ad-form">
+            <div class="ad-field"><label class="ad-label">Email</label><input z-input formControlName="email" type="email" class="ad-input"/></div>
+            <div class="ad-field"><label class="ad-label">Reset Token</label><input z-input formControlName="token" type="text" class="ad-input ad-input--code"/></div>
+            <div class="ad-field"><label class="ad-label">New Password</label><input z-input formControlName="newPassword" type="password" class="ad-input"/></div>
+            @if (err()) { <div class="ad-alert ad-alert--err">{{ err() }}</div> }
+            @if (ok()) { <div class="ad-alert ad-alert--ok">{{ ok() }}</div> }
+            <button type="submit" class="ad-cta" [disabled]="resetForm.invalid || busy()">
+              @if (busy()) { <span class="ad-spin"></span> Resetting… }
+              @else { <span>Reset Password</span><span class="ad-cta-icon">→</span> }
             </button>
-
           </form>
-
         </div>
       }
 
     </div>
   `,
   styles: [`
-    /* ═══════════════════════════════════════════
-       TOKENS
-    ═══════════════════════════════════════════ */
     :host {
-      --bg:        #09090c;
-      --bg2:       #111116;
-      --coral:     #FF4433;
-      --coral-dim: rgba(255,68,51,0.1);
-      --gold:      #F0B429;
-      --gold-dim:  rgba(240,180,41,0.1);
-      --text:      #F2EEE6;
-      --muted:     rgba(242,238,230,0.45);
-      --border:    rgba(242,238,230,0.08);
-      --border-hi: rgba(242,238,230,0.14);
-      --fd: 'Bebas Neue', sans-serif;
-      --fb: 'Plus Jakarta Sans', sans-serif;
-      --fm: 'DM Mono', monospace;
-      display: block;
-      /* fill the dialog on any screen size */
-      width: 100%;
+      --coral:  #FF4433;
+      --gold:   #F0B429;
+      --bg:     #09090c;
+      --bg2:    #111116;
+      --text:   #F2EEE6;
+      --muted:  rgba(242,238,230,.45);
+      --bdr:    rgba(242,238,230,.08);
+      --bdrhi:  rgba(242,238,230,.14);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      display: block; width: 100%;
     }
 
-    /* ═══════════════════════════════════════════
-       WRAPPER  — mobile-first: full width, no min-width
-    ═══════════════════════════════════════════ */
-    .es-auth {
-      position: relative;
-      width: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--fb);
-      overflow: hidden;
+    /* Shell */
+    .ad-shell {
+      position: relative; width: 100%; background: var(--bg);
+      color: var(--text); overflow: hidden;
     }
-
-    /* ambient glow */
-    .es-auth__glow {
-      position: absolute;
-      top: -40%; left: -30%;
-      width: 260px; height: 260px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,68,51,.07) 0%, transparent 65%);
+    .ad-glow {
+      position: absolute; top: -80px; left: -60px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,68,51,.06) 0%, transparent 70%);
       pointer-events: none; z-index: 0;
     }
-
-    /* noise */
-    .es-auth__noise {
-      position: absolute; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-      background-size: 256px; mix-blend-mode: overlay; opacity: .8;
-      pointer-events: none; z-index: 0;
+    .ad-grain {
+      position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .5;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
     }
 
-    /* ═══════════════════════════════════════════
-       PANE  — tighter padding on small screens
-    ═══════════════════════════════════════════ */
-    .es-auth__pane {
+    /* Pane */
+    .ad-pane {
       position: relative; z-index: 1;
-      /* mobile: compact padding */
-      padding: 1.25rem 1rem 1.5rem;
-      display: flex; flex-direction: column; gap: 1.1rem;
+      padding: 1.5rem 1.25rem 1.75rem;
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+    .ad-anim { animation: fadeUp .3s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Brand */
+    .ad-brand { display: flex; align-items: center; gap: 9px; }
+    .ad-brand-ring {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      border: 1.5px solid rgba(255,68,51,.4); background: rgba(255,68,51,.08);
+      color: var(--coral); display: flex; align-items: center; justify-content: center;
+    }
+    .ad-brand-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: .06em; }
+
+    /* Head */
+    .ad-head { display: flex; flex-direction: column; gap: .4rem; }
+    .ad-step-label {
+      font-family: 'DM Mono', monospace; font-size: .6rem; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .ad-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem;
+      letter-spacing: .04em; line-height: 1; margin: 0; color: var(--text);
+    }
+    .ad-title--sm { font-size: 1.85rem; }
+    .ad-title-stroke {
+      -webkit-text-stroke: 1.5px var(--coral); color: transparent;
+    }
+    .ad-sub { font-size: .83rem; color: var(--muted); line-height: 1.65; margin: 0; font-weight: 300; }
+    .ad-em { color: var(--text); font-weight: 600; font-style: normal; }
+
+    .ad-badge {
+      display: inline-flex; align-items: center; width: fit-content;
+      padding: 3px 10px; border-radius: 100px;
+      background: rgba(255,68,51,.1); border: 1px solid rgba(255,68,51,.25);
+      font-family: 'DM Mono', monospace; font-size: .62rem; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--coral);
+    }
+    .ad-badge--gold { background: rgba(240,180,41,.1); border-color: rgba(240,180,41,.25); color: var(--gold); }
+
+    /* Verify hero */
+    .ad-verify-hero { display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; }
+    .ad-verify-orb {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: rgba(240,180,41,.08); border: 1px solid rgba(240,180,41,.2);
+      color: var(--gold); display: flex; align-items: center; justify-content: center;
     }
 
-    /* entrance animation */
-    .es-anim-in {
-      animation: pane-in .35s cubic-bezier(.2,.8,.4,1) both;
-    }
-    @keyframes pane-in {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ═══════════════════════════════════════════
-       BRAND
-    ═══════════════════════════════════════════ */
-    .es-auth__brand {
-      display: flex; align-items: center; gap: 8px;
-    }
-    .es-auth__logo-ring {
-      width: 36px; height: 36px;
-      border: 1px solid rgba(255,68,51,.4);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--coral);
-      background: var(--coral-dim);
-      flex-shrink: 0;
-    }
-    .es-auth__logo-ring--gold {
-      border-color: rgba(240,180,41,.4);
-      color: var(--gold);
-      background: var(--gold-dim);
-    }
-    .es-auth__logo-ring--coral {
-      border-color: rgba(255,68,51,.4);
-      color: var(--coral);
-      background: var(--coral-dim);
-    }
-    .es-auth__logo-name {
-      font-family: var(--fd);
-      font-size: 1.35rem;
-      letter-spacing: .06em;
-      color: var(--text);
-    }
-
-    /* ═══════════════════════════════════════════
-       HEAD
-    ═══════════════════════════════════════════ */
-    .es-auth__head {
-      display: flex; flex-direction: column; gap: .4rem;
-    }
-    .es-auth__title {
-      font-family: var(--fd);
-      /* mobile: slightly smaller */
-      font-size: 1.9rem;
-      letter-spacing: .04em;
-      color: var(--text);
-      margin: 0;
-      line-height: 1;
-    }
-    .es-auth__sub {
-      font-size: .84rem;
-      color: var(--muted);
-      line-height: 1.6;
-      margin: 0;
-      font-weight: 300;
-    }
-    .es-auth__role-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      width: fit-content;
-      padding: 3px 10px;
-      background: var(--coral-dim);
-      border: 1px solid rgba(255,68,51,.25);
-      border-radius: 100px;
-      font-family: var(--fm);
-      font-size: .62rem;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--coral);
-    }
-
-    /* ═══════════════════════════════════════════
-       ACTIONS (welcome)
-    ═══════════════════════════════════════════ */
-    .es-auth__actions {
-      display: flex; flex-direction: column; gap: .65rem;
-    }
-
-    /* ═══════════════════════════════════════════
-       BUTTONS
-    ═══════════════════════════════════════════ */
-    .es-btn-primary {
-      width: 100%;
-      display: inline-flex; align-items: center; justify-content: space-between;
-      /* mobile: slightly less padding */
-      padding: .75rem 1rem .75rem 1.2rem;
-      background: var(--coral); color: #fff;
-      border: none; border-radius: 11px;
-      font-family: var(--fb); font-weight: 700; font-size: .88rem;
-      letter-spacing: .02em;
-      cursor: pointer;
-      transition: box-shadow .25s, transform .18s, opacity .2s;
-      box-shadow: 0 0 24px rgba(255,68,51,.22);
-      position: relative; overflow: hidden;
-      /* prevent tap highlight on mobile */
+    /* Roles */
+    .ad-roles { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .ad-role {
+      position: relative; padding: 1.1rem .85rem 1rem;
+      background: var(--bg2); border: 1px solid var(--bdr); border-radius: 14px;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: .45rem;
+      text-align: center; transition: border-color .2s, transform .18s, background .2s;
       -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
     }
-    .es-btn-primary::before {
+    .ad-role:hover { border-color: var(--bdrhi); transform: translateY(-2px); }
+    .ad-role--active { border-color: rgba(255,68,51,.5) !important; background: rgba(255,68,51,.05) !important; }
+    .ad-role-check {
+      position: absolute; top: .55rem; right: .55rem;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--coral); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transform: scale(.5); transition: opacity .2s, transform .2s;
+    }
+    .ad-role--active .ad-role-check { opacity: 1; transform: scale(1); }
+    .ad-role-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ad-role-icon--coral { background: rgba(255,68,51,.1); border: 1px solid rgba(255,68,51,.18); color: var(--coral); }
+    .ad-role-icon--gold  { background: rgba(240,180,41,.1); border: 1px solid rgba(240,180,41,.18); color: var(--gold); }
+    .ad-role-name { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: .04em; color: var(--text); }
+    .ad-role-hint { font-size: .68rem; color: var(--muted); font-weight: 300; }
+
+    /* Buttons */
+    .ad-stack { display: flex; flex-direction: column; gap: .6rem; }
+    .ad-cta {
+      width: 100%; display: inline-flex; align-items: center; justify-content: space-between;
+      padding: .8rem 1rem .8rem 1.25rem; border-radius: 12px;
+      background: var(--coral); color: #fff; border: none;
+      font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: .9rem;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: box-shadow .25s, transform .18s, opacity .2s;
+      box-shadow: 0 0 28px rgba(255,68,51,.2);
+    }
+    .ad-cta::before {
       content: ''; position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,.13) 0%, transparent 55%);
+      background: linear-gradient(135deg, rgba(255,255,255,.14) 0%, transparent 55%);
       pointer-events: none;
     }
-    .es-btn-primary:hover:not(:disabled) {
-      box-shadow: 0 0 44px rgba(255,68,51,.42);
-      transform: translateY(-1px);
+    .ad-cta--gold { background: var(--gold); color: #1a1200; box-shadow: 0 0 28px rgba(240,180,41,.22); }
+    .ad-cta--gold:hover:not(:disabled) { box-shadow: 0 0 48px rgba(240,180,41,.4); }
+    .ad-cta:hover:not(:disabled) { box-shadow: 0 0 48px rgba(255,68,51,.4); transform: translateY(-1px); }
+    .ad-cta:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .ad-cta-icon {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: transform .2s; flex-shrink: 0;
     }
-    .es-btn-primary:active:not(:disabled) {
-      transform: translateY(0) scale(.98);
-    }
-    .es-btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-    .es-btn-primary__icon {
-      display: flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px;
-      background: rgba(255,255,255,.18); border-radius: 7px;
-      font-size: .8rem; flex-shrink: 0;
-      transition: transform .2s;
-    }
-    .es-btn-primary:hover:not(:disabled) .es-btn-primary__icon { transform: rotate(15deg); }
+    .ad-cta:hover:not(:disabled) .ad-cta-icon { transform: translateX(3px); }
 
-    /* ghost */
-    .es-btn-ghost {
-      width: 100%;
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: .75rem 1.2rem;
-      background: transparent; color: var(--text);
-      border: 1px solid var(--border-hi); border-radius: 11px;
-      font-family: var(--fb); font-weight: 500; font-size: .88rem;
-      cursor: pointer;
-      transition: border-color .22s, background .22s, color .22s;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+    .ad-ghost {
+      width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: .8rem 1.25rem; border-radius: 12px;
+      background: transparent; color: var(--text); border: 1px solid var(--bdrhi);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; font-size: .9rem;
+      cursor: pointer; transition: border-color .22s, background .22s, color .22s;
     }
-    .es-btn-ghost:hover {
-      border-color: rgba(255,68,51,.35);
-      background: var(--coral-dim);
-      color: #ff7060;
-    }
-    .es-btn-ghost:active { background: rgba(255,68,51,.15); }
+    .ad-ghost:hover { border-color: rgba(255,68,51,.4); background: rgba(255,68,51,.05); color: #ff7060; }
 
-    /* back btn */
-    .es-back-btn {
+    .ad-back {
       display: inline-flex; align-items: center; gap: 5px;
-      background: none; border: none; padding: 0;
-      font-family: var(--fb); font-size: .78rem; font-weight: 500;
-      color: var(--muted); cursor: pointer;
+      background: none; border: none; padding: 0; min-height: 32px;
+      font-size: .78rem; font-weight: 500; color: var(--muted); cursor: pointer;
       transition: color .2s; width: fit-content;
-      /* larger tap target on mobile */
-      min-height: 36px;
-      -webkit-tap-highlight-color: transparent;
     }
-    .es-back-btn:hover { color: var(--text); }
+    .ad-back:hover { color: var(--text); }
 
-    /* link */
-    .es-link {
-      background: none; border: none; padding: 0;
-      font-family: var(--fb); font-size: inherit; font-weight: 600;
-      color: var(--coral); cursor: pointer;
-      transition: opacity .2s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .es-link:hover { opacity: .8; }
-    .es-link--sm { font-size: .78rem; font-weight: 500; }
+    .ad-link { background: none; border: none; padding: 0; color: var(--coral); font-weight: 600; font-size: inherit; cursor: pointer; transition: opacity .2s; }
+    .ad-link:hover { opacity: .8; }
+    .ad-link--sm { font-size: .76rem; font-weight: 500; }
 
-    /* ═══════════════════════════════════════════
-       ROLE CARDS  — stacked on mobile, 2-col on sm+
-    ═══════════════════════════════════════════ */
-    .es-role-grid {
-      display: grid;
-      /* mobile: full-width stack */
-      grid-template-columns: 1fr;
-      gap: .75rem;
+    /* Form */
+    .ad-form { display: flex; flex-direction: column; gap: .85rem; }
+    .ad-field { display: flex; flex-direction: column; gap: .38rem; }
+    .ad-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .ad-label-row { display: flex; align-items: center; justify-content: space-between; }
+    .ad-label { font-size: .74rem; font-weight: 600; color: rgba(242,238,230,.7); letter-spacing: .01em; }
+    .ad-input {
+      width: 100%; background: var(--bg2) !important; border: 1px solid var(--bdr) !important;
+      border-radius: 9px !important; color: var(--text) !important;
+      font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: .88rem !important;
+      padding: .7rem .9rem !important; transition: border-color .2s, box-shadow .2s !important;
+      outline: none !important; box-sizing: border-box !important;
     }
-    .es-role-card {
-      position: relative;
-      padding: 1rem .9rem;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 13px;
-      cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: .55rem;
-      text-align: center;
-      transition: border-color .22s, background .22s, transform .18s;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+    .ad-input:focus { border-color: rgba(255,68,51,.5) !important; box-shadow: 0 0 0 3px rgba(255,68,51,.08) !important; }
+    .ad-input::placeholder { color: rgba(242,238,230,.25) !important; }
+    .ad-input--code {
+      font-family: 'DM Mono', monospace !important; letter-spacing: .2em !important;
+      font-size: 1.1rem !important; text-align: center !important;
     }
-    .es-role-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
-    .es-role-card:active { transform: scale(.98); }
-    .es-role-card--active {
-      border-color: rgba(255,68,51,.55) !important;
-      background: var(--coral-dim) !important;
-      box-shadow: 0 0 18px rgba(255,68,51,.1);
+    .ad-ferr { font-size: .7rem; color: var(--coral); }
+    .ad-alert {
+      padding: .6rem .85rem; border-radius: 9px; font-size: .8rem; line-height: 1.5;
     }
-    .es-role-card__check {
-      position: absolute; top: .65rem; right: .65rem;
-      color: var(--coral); opacity: 0;
-      transition: opacity .2s;
-    }
-    .es-role-card__check--on { opacity: 1; }
-    .es-role-card__icon {
-      width: 40px; height: 40px;
-      background: rgba(255,68,51,.1);
-      border: 1px solid rgba(255,68,51,.18);
-      border-radius: 11px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--coral);
-    }
-    .es-role-card__title {
-      font-family: var(--fd);
-      font-size: 1.05rem; letter-spacing: .04em;
-      color: var(--text); margin: 0;
-    }
-    .es-role-card__desc {
-      font-size: .7rem; color: var(--muted);
-      margin: 0; font-weight: 300;
-    }
+    .ad-alert--err { background: rgba(255,68,51,.1); border: 1px solid rgba(255,68,51,.22); color: #ff7060; }
+    .ad-alert--ok  { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2); color: #4ade80; }
 
-    /* ═══════════════════════════════════════════
-       FORM
-    ═══════════════════════════════════════════ */
-    .es-form { display: flex; flex-direction: column; gap: .85rem; }
-    .es-field { display: flex; flex-direction: column; gap: .4rem; }
-
-    /* mobile: stacked name fields by default */
-    .es-field-row {
-      display: flex;
-      flex-direction: column;
-      gap: .75rem;
+    /* Misc */
+    .ad-divider-text { text-align: center; font-size: .8rem; color: var(--muted); }
+    .ad-spin {
+      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; display: inline-block; animation: spin .7s linear infinite;
     }
-
-    .es-label-row { display: flex; align-items: center; justify-content: space-between; }
-    .es-label {
-      font-size: .76rem; font-weight: 600;
-      color: rgba(242,238,230,.75);
-      letter-spacing: .02em;
-    }
-    .es-required { color: var(--coral); }
-
-    /* input override */
-    .es-input {
-      width: 100%;
-      background: var(--bg2) !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 9px !important;
-      color: var(--text) !important;
-      font-family: var(--fb) !important;
-      /* mobile: 16px prevents iOS auto-zoom */
-      font-size: 1rem !important;
-      padding: .7rem .9rem !important;
-      transition: border-color .22s, box-shadow .22s !important;
-      outline: none !important;
-      /* mobile: full width, no overflow */
-      box-sizing: border-box !important;
-      -webkit-appearance: none;
-    }
-    .es-input:focus {
-      border-color: rgba(255,68,51,.5) !important;
-      box-shadow: 0 0 0 3px rgba(255,68,51,.08) !important;
-    }
-    .es-input::placeholder { color: var(--muted) !important; }
-    .es-input--mono { font-family: var(--fm) !important; letter-spacing: .06em !important; }
-
-    .es-field-error {
-      font-size: .7rem; color: var(--coral); margin: 0;
-      font-weight: 500;
-    }
-
-    /* ═══════════════════════════════════════════
-       ALERTS
-    ═══════════════════════════════════════════ */
-    .es-alert {
-      display: flex; align-items: flex-start; gap: 8px;
-      padding: .65rem .9rem;
-      border-radius: 9px;
-      font-size: .8rem; line-height: 1.5;
-    }
-    .es-alert--error {
-      background: rgba(255,68,51,.1);
-      border: 1px solid rgba(255,68,51,.22);
-      color: #ff7060;
-    }
-    .es-alert--success {
-      background: rgba(34,214,98,.08);
-      border: 1px solid rgba(34,214,98,.2);
-      color: #4ade80;
-    }
-
-    /* ═══════════════════════════════════════════
-       INFO STRIP
-    ═══════════════════════════════════════════ */
-    .es-info-strip {
-      display: flex; align-items: flex-start; gap: 8px;
-      padding: .65rem .9rem;
-      background: rgba(240,180,41,.08);
-      border: 1px solid rgba(240,180,41,.18);
-      border-radius: 9px;
-      font-size: .76rem; color: rgba(240,180,41,.9);
-      line-height: 1.5;
-    }
-    .es-info-strip__icon { flex-shrink: 0; margin-top: 1px; }
-
-    /* ═══════════════════════════════════════════
-       ALT LINK
-    ═══════════════════════════════════════════ */
-    .es-auth__alt-link {
-      text-align: center;
-      font-size: .8rem;
-      color: var(--muted);
-      padding-top: .15rem;
-    }
-
-    /* ═══════════════════════════════════════════
-       ICONS
-    ═══════════════════════════════════════════ */
-    .es-icon    { width: 16px; height: 16px; display: inline-flex; }
-    .es-icon-sm { width: 14px; height: 14px; display: inline-flex; }
-    .es-icon-lg { width: 20px; height: 20px; display: inline-flex; }
-
-    /* spin */
-    .es-spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* divider */
-    z-divider { border-color: var(--border); }
-
-
-    /* ═══════════════════════════════════════════
-       BREAKPOINT: sm  ≥ 480px
-       — side-by-side name fields, 2-col role grid
-    ═══════════════════════════════════════════ */
-    @media (min-width: 480px) {
-      .es-auth__pane {
-        padding: 1.75rem 1.5rem 2rem;
-        gap: 1.35rem;
-      }
-
-      .es-auth__title { font-size: 2.1rem; }
-      .es-auth__sub   { font-size: .86rem; }
-
-      /* role cards: 2 columns */
-      .es-role-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: .85rem;
-      }
-
-      /* name fields side-by-side */
-      .es-field-row {
-        flex-direction: row;
-        gap: .75rem;
-      }
-
-      /* inputs can shrink back to design size */
-      .es-input { font-size: .88rem !important; }
-
-      .es-btn-primary { padding: .82rem 1.1rem .82rem 1.35rem; font-size: .92rem; }
-      .es-btn-ghost   { padding: .82rem 1.35rem; font-size: .9rem; }
-    }
-
-
-    /* ═══════════════════════════════════════════
-       BREAKPOINT: md  ≥ 640px
-       — restored desktop spacing & glow
-    ═══════════════════════════════════════════ */
-    @media (min-width: 640px) {
-      .es-auth__pane {
-        padding: 2rem 1.75rem 2rem;
-        gap: 1.5rem;
-      }
-
-      .es-auth__glow {
-        width: 400px; height: 400px;
-      }
-
-      .es-auth__logo-ring { width: 40px; height: 40px; }
-      .es-auth__logo-name { font-size: 1.5rem; }
-
-      .es-auth__title { font-size: 2.2rem; }
-
-      .es-role-card   { padding: 1.25rem 1rem; }
-
-      .es-form { gap: 1rem; }
-      .es-field { gap: .45rem; }
-
-      .es-btn-primary__icon { width: 28px; height: 28px; border-radius: 8px; }
+    @media (max-width: 380px) {
+      .ad-row { grid-template-columns: 1fr; }
     }
   `],
 })
-export class AuthDialog {
+export class AuthDialog implements OnInit {
   private readonly dialogRef   = inject(ZardDialogRef);
+  private readonly dialogSvc   = inject(ZardDialogService);
   private readonly fb          = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
+  private readonly auth        = inject(AuthService);
   private readonly router      = inject(Router);
 
-  step          = signal<DialogStep>('welcome');
-  selectedRole  = signal<UserRole>('user');
-  loginRole     = signal<UserRole>('organizer');
-  isSubmitting  = signal(false);
-  errorMessage  = signal('');
-  successMessage = signal('');
-
-  readonly icons = {
-    calendar:    'calendar'     as ZardIcon,
-    userPlus:    'user-plus'    as ZardIcon,
-    logIn:       'log-in'       as ZardIcon,
-    arrowLeft:   'arrow-left'   as ZardIcon,
-    briefcase:   'briefcase'    as ZardIcon,
-    user:        'user'         as ZardIcon,
-    alertCircle: 'alert-circle' as ZardIcon,
-    checkCircle: 'check-circle' as ZardIcon,
-    loader:      'loader'       as ZardIcon,
-    mail:        'mail'         as ZardIcon,
-    key:         'key'          as ZardIcon,
-  };
+  step       = signal<Step>('welcome');
+  regRole    = signal<UserRole>('user');
+  loginRole  = signal<UserRole>('organizer');
+  pendingEmail = signal('');
+  busy       = signal(false);
+  err        = signal('');
+  ok         = signal('');
 
   registerForm!: FormGroup;
+  verifyForm!: FormGroup;
   loginForm!: FormGroup;
-  forgotPasswordForm!: FormGroup;
-  resetPasswordForm!: FormGroup;
+  forgotForm!: FormGroup;
+  resetForm!: FormGroup;
 
-  constructor() { this.initForms(); }
+  ngOnInit() { this.buildForms(); }
 
-  private initForms(): void {
-    this.loginForm = this.fb.group({
-      email:    ['test@acmedigital.com', [Validators.required, Validators.email]],
-      password: ['TestPass123!',         [Validators.required]],
+  private buildForms() {
+    this.verifyForm = this.fb.group({ code: ['', Validators.required] });
+    this.loginForm  = this.fb.group({
+      email:    ['', [Validators.required, Validators.email]],
+      password: ['', Validators.required],
     });
-    this.forgotPasswordForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-    });
-    this.resetPasswordForm = this.fb.group({
+    this.forgotForm = this.fb.group({ email: ['', [Validators.required, Validators.email]] });
+    this.resetForm  = this.fb.group({
       email:       ['', [Validators.required, Validators.email]],
-      token:       ['', [Validators.required]],
+      token:       ['', Validators.required],
       newPassword: ['', [Validators.required, Validators.minLength(6)]],
     });
     this.buildRegisterForm();
   }
 
-  private buildRegisterForm(): void {
-    if (this.selectedRole() === 'organizer') {
-      this.registerForm = this.fb.group({
-        name:     ['', [Validators.required, Validators.minLength(3)]],
-        email:    ['', [Validators.required, Validators.email]],
-        password: ['', [Validators.required, Validators.minLength(6)]],
-      });
-    } else {
-      this.registerForm = this.fb.group({
-        firstName: ['', [Validators.required]],
-        lastName:  ['', [Validators.required]],
-        email:     ['', [Validators.required, Validators.email]],
-        password:  ['', [Validators.required, Validators.minLength(6)]],
-      });
-    }
+  private buildRegisterForm() {
+    this.registerForm = this.regRole() === 'organizer'
+      ? this.fb.group({
+          name:     ['', [Validators.required, Validators.minLength(2)]],
+          email:    ['', [Validators.required, Validators.email]],
+          password: ['', [Validators.required, Validators.minLength(6)]],
+        })
+      : this.fb.group({
+          firstName: ['', Validators.required],
+          lastName:  ['', Validators.required],
+          email:     ['', [Validators.required, Validators.email]],
+          password:  ['', [Validators.required, Validators.minLength(6)]],
+        });
   }
 
-  private clearMessages(): void {
-    this.errorMessage.set('');
-    this.successMessage.set('');
-  }
+  f(name: string) { return this.registerForm.get(name)!; }
 
-  goToRoleSelection(): void { this.step.set('role-selection'); this.clearMessages(); }
-  goToLogin():         void { this.step.set('login');          this.loginForm.reset(); this.loginRole.set('organizer'); this.clearMessages(); }
-  backToWelcome():     void { this.step.set('welcome');        this.clearMessages(); }
-  backToRoleSelection():void{ this.step.set('role-selection'); this.clearMessages(); }
-  backToLogin():       void { this.step.set('login');          this.clearMessages(); }
-  goToForgotPassword():void {
-    this.step.set('forgot-password');
-    this.forgotPasswordForm.patchValue({ email: this.loginForm.get('email')?.value || '' });
-    this.clearMessages();
-  }
+  goto(s: Step) { this.step.set(s); this.err.set(''); this.ok.set(''); }
+  setRegRole(r: UserRole)   { this.regRole.set(r);   this.buildRegisterForm(); this.goto('register'); }
+  setLoginRole(r: UserRole) { this.loginRole.set(r); this.goto('login'); }
 
-  selectRole(role: UserRole): void {
-    this.selectedRole.set(role);
-    this.buildRegisterForm();
-    this.step.set('register');
-    this.clearMessages();
-  }
+  private clear() { this.err.set(''); this.ok.set(''); }
 
-  onRegister(): void {
-    if (this.registerForm.invalid || this.isSubmitting()) return;
-    this.isSubmitting.set(true);
-    this.clearMessages();
-
-    const formValue: RegisterDto = this.registerForm.value;
-    const role = this.selectedRole();
-
-    this.authService.register(formValue, role).subscribe({
-      next: (response) => {
-        this.isSubmitting.set(false);
-        if (response.success) {
-          this.successMessage.set(
-            role === 'organizer'
-              ? 'Organizer account created! You can now login.'
-              : 'Account created! You can now browse events.'
-          );
-          this.loginForm.patchValue({ email: formValue.email, password: formValue.password });
-          setTimeout(() => {
-            role === 'organizer' ? this.step.set('login') : this.dialogRef.close();
-            this.clearMessages();
-          }, 2000);
-        } else {
-          this.errorMessage.set(response.message || 'Registration failed');
-        }
+  /* ── Register ── */
+  onRegister() {
+    if (this.registerForm.invalid || this.busy()) return;
+    this.busy.set(true); this.clear();
+    const data: RegisterDto = this.registerForm.value;
+    this.auth.register(data, this.regRole()).subscribe({
+      next: r => {
+        this.busy.set(false);
+        if (r.success) {
+          const email = this.registerForm.get('email')!.value;
+          this.pendingEmail.set(email);
+          if (this.regRole() === 'user') {
+            this.ok.set('Account created! Check your email for the verification code.');
+            setTimeout(() => { this.goto('verify'); }, 1200);
+          } else {
+            this.ok.set('Organizer account created! Please sign in.');
+            setTimeout(() => {
+              this.loginRole.set('organizer');
+              this.loginForm.patchValue({ email, password: data.password });
+              this.goto('login');
+            }, 1500);
+          }
+        } else { this.err.set(r.message || 'Registration failed'); }
       },
-      error: (err) => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Registration failed. Please try again.');
-      },
+      error: e => { this.busy.set(false); this.err.set(e?.error?.message || 'Registration failed'); },
     });
   }
 
-  onLogin(): void {
-    if (this.loginForm.invalid || this.isSubmitting()) return;
-    this.isSubmitting.set(true);
-    this.clearMessages();
+  /* ── Verify ── */
+  onVerify() {
+    if (this.verifyForm.invalid || this.busy()) return;
+    this.busy.set(true); this.clear();
+    const dto: VerifyAccountDto = { email: this.pendingEmail(), code: this.verifyForm.get('code')!.value };
+    this.auth.verifyAccount(dto).subscribe({
+      next: r => {
+        this.busy.set(false);
+        if (r.success) {
+          this.ok.set('Email verified! Redirecting to sign in…');
+          setTimeout(() => {
+            this.loginRole.set('user');
+            this.loginForm.patchValue({ email: this.pendingEmail() });
+            this.goto('login');
+          }, 1200);
+        } else { this.err.set(r.message || 'Verification failed'); }
+      },
+      error: e => { this.busy.set(false); this.err.set(e?.error?.message || 'Invalid or expired code'); },
+    });
+  }
 
+  /* ── Login ── */
+  onLogin() {
+    if (this.loginForm.invalid || this.busy()) return;
+    this.busy.set(true); this.clear();
     const payload: LoginDto = this.loginForm.value;
-    this.authService.login(payload, 'organizer').subscribe({
-      next: (response) => {
-        this.isSubmitting.set(false);
-        const hasToken = typeof response.data === 'string'
-          ? response.data : response.data?.token || response.token;
-        if (response.success && hasToken) {
-          this.successMessage.set('Login successful! Redirecting…');
-          setTimeout(() => { this.dialogRef.close(); this.router.navigate(['/dashboard']); }, 1000);
-        } else {
-          this.errorMessage.set(response.message || 'Login failed — no token received');
-        }
+    const role = this.loginRole();
+    this.auth.login(payload, role).subscribe({
+      next: r => {
+        this.busy.set(false);
+        const token = typeof r.data === 'string' ? r.data : (r.data as any)?.token || r.token;
+        if (r.success && token) {
+          if (role === 'user') {
+            // Close auth dialog & open category sheet
+            this.ok.set('Welcome! Let\'s personalise your feed…');
+            setTimeout(() => {
+              this.dialogRef.close();
+              this.openCategorySheet();
+            }, 700);
+          } else {
+            this.ok.set('Welcome back! Redirecting…');
+            setTimeout(() => { this.dialogRef.close(); this.router.navigate(['/dashboard']); }, 900);
+          }
+        } else { this.err.set(r.message || 'Login failed — no token'); }
       },
-      error: (err) => {
-        this.isSubmitting.set(false);
-        let msg = err.error?.message || 'Login failed. Please check your credentials.';
-        if (msg.includes('Invalid') || msg.includes('password'))
-          msg += ' Make sure you registered as an Organizer.';
-        this.errorMessage.set(msg);
-      },
+      error: e => { this.busy.set(false); this.err.set(e?.error?.message || 'Login failed'); },
     });
   }
 
-  onForgotPassword(): void {
-    if (this.forgotPasswordForm.invalid || this.isSubmitting()) return;
-    this.isSubmitting.set(true);
-    this.clearMessages();
-
-    const payload: ForgotPasswordDto = this.forgotPasswordForm.value;
-    this.authService.forgotPassword(payload, 'organizer').subscribe({
-      next: (response) => {
-        this.isSubmitting.set(false);
-        if (response.success) {
-          this.successMessage.set('Reset link sent! Check your inbox.');
+  private openCategorySheet() {
+    this.dialogSvc.create({
+      zContent: CategorySelectSheet,
+      zData: {},
+    });
+  }
+  /* ── Forgot / Reset ── */
+  onForgot() {
+    if (this.forgotForm.invalid || this.busy()) return;
+    this.busy.set(true); this.clear();
+    this.auth.forgotPassword(this.forgotForm.value, this.loginRole()).subscribe({
+      next: r => {
+        this.busy.set(false);
+        if (r.success) {
+          this.ok.set('Reset link sent! Check your inbox.');
           setTimeout(() => {
-            this.step.set('reset-password');
-            this.resetPasswordForm.patchValue({ email: payload.email });
-            this.clearMessages();
+            this.resetForm.patchValue({ email: this.forgotForm.get('email')!.value });
+            this.goto('reset-password');
           }, 2500);
-        } else {
-          this.errorMessage.set(response.message || 'Failed to send reset link');
-        }
+        } else { this.err.set(r.message || 'Failed to send reset link'); }
       },
-      error: (err) => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to send reset link.');
-      },
+      error: e => { this.busy.set(false); this.err.set(e?.error?.message || 'Failed'); },
     });
   }
 
-  onResetPassword(): void {
-    if (this.resetPasswordForm.invalid || this.isSubmitting()) return;
-    this.isSubmitting.set(true);
-    this.clearMessages();
-
-    const payload: ResetPasswordDto = this.resetPasswordForm.value;
-    this.authService.resetPassword(payload, 'organizer').subscribe({
-      next: (response) => {
-        this.isSubmitting.set(false);
-        if (response.success) {
-          this.successMessage.set('Password reset! You can now login.');
+  onReset() {
+    if (this.resetForm.invalid || this.busy()) return;
+    this.busy.set(true); this.clear();
+    this.auth.resetPassword(this.resetForm.value, this.loginRole()).subscribe({
+      next: r => {
+        this.busy.set(false);
+        if (r.success) {
+          this.ok.set('Password reset! You can now sign in.');
           setTimeout(() => {
-            this.step.set('login');
-            this.loginForm.patchValue({ email: payload.email });
-            this.clearMessages();
+            this.loginForm.patchValue({ email: this.resetForm.get('email')!.value });
+            this.goto('login');
           }, 2000);
-        } else {
-          this.errorMessage.set(response.message || 'Password reset failed');
-        }
+        } else { this.err.set(r.message || 'Reset failed'); }
       },
-      error: (err) => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set(err.error?.message || 'Reset failed. Please check your token.');
-      },
+      error: e => { this.busy.set(false); this.err.set(e?.error?.message || 'Reset failed'); },
     });
   }
 }
