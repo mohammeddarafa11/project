@@ -4,7 +4,7 @@ import { authGuard }       from './core/guards/auth.guard';
 import { guestGuard }      from './core/guards/guest.guard';
 import { organizerGuard }  from './core/guards/organizer.guard';
 import { userRoleGuard }   from './core/guards/user-role.guard';
-import { EventDetail } from './features/event-detail/event-detail';
+import { EventDetail }     from './features/event-detail/event-detail';
 
 export const routes: Routes = [
   // ── PUBLIC ────────────────────────────────────────────────────────────
@@ -53,6 +53,19 @@ export const routes: Routes = [
     ],
   },
 
+  // ── CATEGORY ONBOARDING ───────────────────────────────────────────────
+  // Shown once after a new user logs in. The component's ngOnInit redirects
+  // to /user-dashboard immediately if the user already has saved categories,
+  // so returning users never land here.
+  {
+    path: 'select-categories',
+    loadComponent: () =>
+      import('./features/auth/category-select-sheet/category-select-sheet').then(
+        m => m.CategorySelectPage,
+      ),
+    canActivate: [authGuard, userRoleGuard],
+  },
+
   // ── USER DASHBOARD ────────────────────────────────────────────────────
   {
     path: 'user-dashboard',
@@ -69,20 +82,6 @@ export const routes: Routes = [
             m => m.UserDashboardHome,
           ),
       },
-      // {
-      //   path: 'bookings',
-      //   loadComponent: () =>
-      //     import('./features/user-dashboard/user-bookings/user-bookings').then(
-      //       m => m.UserBookingsComponent,
-      //     ),
-      // },
-      // {
-      //   path: 'explore',
-      //   loadComponent: () =>
-      //     import('./features/events/events-page/events-page').then(
-      //       m => m.EventsPageComponent,
-      //     ),
-      // },
       { path: 'events/:id', component: EventDetail },
       {
         path: 'bookings',

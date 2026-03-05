@@ -1,12 +1,11 @@
-// src/app/features/auth/category-select-sheet/category-select-sheet.ts
+// src/app/features/auth/category-select-page/category-select-page.ts
 //
-// Only shown ONCE — if the user already has saved category IDs we close
-// immediately so they are never prompted again on subsequent logins.
+// Shown once after a new user logs in — if they already have saved
+// category IDs the guard (or ngOnInit) redirects to the dashboard.
 //
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { ZardDialogRef } from '@shared/components/dialog/dialog-ref';
 import { CategoryService, Category } from '@core/services/category';
 import { UserService } from '@core/services/user.service';
 import { AuthService } from '@core/services/auth.service';
@@ -31,83 +30,107 @@ const PALETTE = [
 ];
 
 @Component({
-  selector: 'app-category-select-sheet',
+  selector: 'app-category-select-page',
   standalone: true,
   imports: [CommonModule],
   template: `
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
-    <div class="cs-sheet">
-      <div class="cs-handle" aria-hidden="true"></div>
+    <div class="cp-page">
+      <!-- ambient glow -->
+      <div class="cp-glow cp-glow--a" aria-hidden="true"></div>
+      <div class="cp-glow cp-glow--b" aria-hidden="true"></div>
+      <div class="cp-grain" aria-hidden="true"></div>
 
-      <div class="cs-header">
-        <div class="cs-header-text">
-          <h2 class="cs-title">What are you<br/><span class="cs-accent">into?</span></h2>
-          <p class="cs-sub">Choose at least one genre. We'll build your personal event feed.</p>
-        </div>
-        @if (selected().size > 0) {
-          <div class="cs-count-badge">{{ selected().size }}</div>
-        }
-      </div>
+      <div class="cp-card" (click)="$event.stopPropagation()">
 
-      <div class="cs-scroll">
-        @if (loading()) {
-          <div class="cs-grid">
-            @for (n of skeletons; track n) {
-              <div class="cs-skel" [style.animation-delay]="n * 55 + 'ms'"></div>
-            }
-          </div>
-        } @else if (error()) {
-          <div class="cs-error">
-            <span>Failed to load categories.</span>
-            <button class="cs-retry" (click)="loadCategories()">Retry</button>
-          </div>
-        } @else {
-          <div class="cs-grid">
-            @for (cat of categories(); track cat.id; let i = $index) {
-              <button
-                class="cs-tile"
-                type="button"
-                [class.cs-tile--on]="selected().has(cat.id)"
-                [style.--tile-bg]="palette(i).bg"
-                [style.--tile-fg]="palette(i).fg"
-                [style.animation-delay]="i * 35 + 'ms'"
-                (click)="toggle(cat.id)"
-              >
-                <div class="cs-tile-check">
-                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                  </svg>
-                </div>
-                <span class="cs-tile-name">{{ cat.name }}</span>
-                <div class="cs-tile-deco cs-tile-deco--a"></div>
-                <div class="cs-tile-deco cs-tile-deco--b"></div>
-              </button>
-            }
-          </div>
-        }
-      </div>
-
-      <div class="cs-footer">
-        <div class="cs-footer-hint">
-          @if (selected().size === 0) { Pick at least one genre to continue }
-          @else if (selected().size === 1) { 1 genre selected — pick more for better results! }
-          @else { {{ selected().size }} genres selected }
-        </div>
-        <button class="cs-btn" [disabled]="selected().size === 0 || saving()" (click)="save()">
-          @if (saving()) {
-            <span class="cs-spin"></span> Saving…
-          } @else {
-            <span>Let's go</span>
-            <span class="cs-btn-arrow">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        <!-- ── HEADER ── -->
+        <div class="cp-header">
+          <div class="cp-brand">
+            <div class="cp-brand-ring">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 2v4M18 2v4M3 10h18M3 6a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"/>
               </svg>
-            </span>
+            </div>
+            <span class="cp-brand-name">Eventsora</span>
+          </div>
+
+          <div class="cp-header-body">
+            <h1 class="cp-title">What are you<br/><span class="cp-accent">into?</span></h1>
+            <p class="cp-sub">Choose at least one genre. We'll build your personal event feed.</p>
+          </div>
+
+          @if (selected().size > 0) {
+            <div class="cp-count-badge" aria-live="polite">{{ selected().size }}</div>
           }
-        </button>
-        <button class="cs-skip" (click)="skip()">Skip for now</button>
+        </div>
+
+        <!-- ── GRID ── -->
+        <div class="cp-scroll">
+          @if (loading()) {
+            <div class="cp-grid">
+              @for (n of skeletons; track n) {
+                <div class="cp-skel" [style.animation-delay]="n * 55 + 'ms'"></div>
+              }
+            </div>
+          } @else if (error()) {
+            <div class="cp-error">
+              <span>Failed to load categories.</span>
+              <button class="cp-retry" type="button" (click)="loadCategories()">Retry</button>
+            </div>
+          } @else {
+            <div class="cp-grid">
+              @for (cat of categories(); track cat.id; let i = $index) {
+                <button
+                  class="cp-tile"
+                  type="button"
+                  [class.cp-tile--on]="selected().has(cat.id)"
+                  [style.--tile-bg]="palette(i).bg"
+                  [style.--tile-fg]="palette(i).fg"
+                  [style.animation-delay]="i * 35 + 'ms'"
+                  (click)="toggle(cat.id)"
+                >
+                  <div class="cp-tile-check">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <span class="cp-tile-name">{{ cat.name }}</span>
+                  <div class="cp-tile-deco cp-tile-deco--a"></div>
+                  <div class="cp-tile-deco cp-tile-deco--b"></div>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- ── FOOTER ── -->
+        <div class="cp-footer">
+          <div class="cp-footer-hint" aria-live="polite">
+            @if (selected().size === 0)      { Pick at least one genre to continue }
+            @else if (selected().size === 1)  { 1 genre selected — pick more for better results! }
+            @else                             { {{ selected().size }} genres selected }
+          </div>
+
+          <button class="cp-btn" type="button"
+                  [disabled]="selected().size === 0 || saving()"
+                  (click)="save()">
+            @if (saving()) {
+              <span class="cp-spin"></span> Saving…
+            } @else {
+              <span>Let's go</span>
+              <span class="cp-btn-arrow">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+              </span>
+            }
+          </button>
+
+          <button class="cp-skip" type="button" (click)="skip()">Skip for now</button>
+        </div>
+
       </div>
     </div>
   `,
@@ -121,69 +144,128 @@ const PALETTE = [
       --muted:  rgba(242,238,230,.45);
       --bdr:    rgba(242,238,230,.07);
       font-family: 'Plus Jakarta Sans', sans-serif;
-      display: block; width: 100%;
+      display: block;
     }
-    .cs-sheet {
-      background: var(--bg); border-radius: 24px 24px 0 0;
-      display: flex; flex-direction: column; max-height: 92dvh;
-      overflow: hidden; width: 100%;
+
+    /* ── Page shell ── */
+    .cp-page {
+      position: relative;
+      min-height: 100dvh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      overflow: hidden;
     }
-    .cs-handle {
-      width: 40px; height: 4px; border-radius: 99px;
-      background: rgba(242,238,230,.15); margin: 14px auto 0; flex-shrink: 0;
+
+    /* Ambient glows */
+    .cp-glow {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
     }
-    .cs-header {
-      padding: 1.25rem 1.25rem .5rem;
-      display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+    .cp-glow--a {
+      width: 480px; height: 480px;
+      top: -140px; left: -100px;
+      background: radial-gradient(circle, rgba(255,68,51,.07) 0%, transparent 70%);
     }
-    .cs-header-text { display: flex; flex-direction: column; gap: .35rem; }
-    .cs-title {
+    .cp-glow--b {
+      width: 380px; height: 380px;
+      bottom: -120px; right: -80px;
+      background: radial-gradient(circle, rgba(240,180,41,.07) 0%, transparent 70%);
+    }
+    .cp-grain {
+      position: absolute; inset: 0; z-index: 0; opacity: .5; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+    }
+
+    /* ── Card ── */
+    .cp-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 520px;
+      background: var(--bg2);
+      border: 1px solid rgba(242,238,230,.08);
+      border-radius: 24px;
+      display: flex; flex-direction: column;
+      max-height: calc(100dvh - 2rem);
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,.55);
+      animation: cardIn .4s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+
+    /* ── Header ── */
+    .cp-header {
+      padding: 1.5rem 1.5rem .75rem;
+      display: flex; flex-direction: column; gap: .75rem; flex-shrink: 0;
+      position: relative;
+    }
+    .cp-brand { display: flex; align-items: center; gap: 9px; }
+    .cp-brand-ring {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      border: 1.5px solid rgba(255,68,51,.4); background: rgba(255,68,51,.08);
+      color: var(--coral); display: flex; align-items: center; justify-content: center;
+    }
+    .cp-brand-name {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: .06em; color: var(--text);
+    }
+    .cp-header-body { display: flex; flex-direction: column; gap: .3rem; }
+    .cp-title {
       font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2rem, 6vw, 2.8rem);
+      font-size: clamp(2rem, 6vw, 2.6rem);
       letter-spacing: .03em; line-height: .92; color: var(--text); margin: 0;
     }
-    .cs-accent { color: var(--gold); }
-    .cs-sub { font-size: .82rem; color: var(--muted); font-weight: 300; line-height: 1.6; max-width: 260px; }
-    .cs-count-badge {
+    .cp-accent { color: var(--gold); }
+    .cp-sub { font-size: .82rem; color: var(--muted); font-weight: 300; line-height: 1.6; }
+    .cp-count-badge {
+      position: absolute; top: 1.5rem; right: 1.5rem;
       min-width: 36px; height: 36px; border-radius: 50%;
       background: var(--gold); color: #1a1200;
       font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: .05em;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 4px;
+      display: flex; align-items: center; justify-content: center;
       animation: pop .25s cubic-bezier(.34,1.56,.64,1);
     }
     @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .cs-scroll {
-      flex: 1; overflow-y: auto; padding: .5rem 1.25rem;
+
+    /* ── Scroll area ── */
+    .cp-scroll {
+      flex: 1; overflow-y: auto; padding: .25rem 1.5rem .5rem;
       scrollbar-width: thin; scrollbar-color: rgba(242,238,230,.1) transparent;
     }
-    .cs-grid {
+    .cp-grid {
       display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; padding-bottom: .5rem;
     }
-    @media (min-width: 400px) { .cs-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (min-width: 640px) { .cs-grid { grid-template-columns: repeat(4, 1fr); } }
-    .cs-tile {
+    @media (min-width: 400px) { .cp-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    /* ── Tiles ── */
+    .cp-tile {
       position: relative; overflow: hidden; border-radius: 14px;
       border: 2.5px solid transparent;
       background: var(--tile-bg, #1a1a22); color: var(--tile-fg, var(--text));
       padding: 1rem .85rem .85rem; min-height: 76px; cursor: pointer; text-align: left;
       transition: transform .22s cubic-bezier(.22,1,.36,1), border-color .18s, box-shadow .22s;
-      -webkit-tap-highlight-color: transparent;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
       animation: tileIn .4s cubic-bezier(.22,1,.36,1) both;
     }
     @keyframes tileIn { from { opacity:0; transform:scale(.9); } to { opacity:1; transform:scale(1); } }
-    .cs-tile:hover { transform: scale(1.04); }
-    .cs-tile--on {
+    .cp-tile:hover { transform: scale(1.04); }
+    .cp-tile--on {
       border-color: rgba(255,255,255,.65) !important;
       box-shadow: 0 0 0 4px rgba(255,255,255,.12), 0 8px 28px rgba(0,0,0,.45);
       transform: scale(1.05);
     }
-    .cs-tile-deco {
+    .cp-tile-deco {
       position: absolute; border-radius: 50%;
       background: rgba(255,255,255,.1); pointer-events: none;
     }
-    .cs-tile-deco--a { width: 64px; height: 64px; bottom: -20px; right: -20px; }
-    .cs-tile-deco--b { width: 36px; height: 36px; bottom: 10px; right: 24px; background: rgba(255,255,255,.06); }
-    .cs-tile-check {
+    .cp-tile-deco--a { width: 64px; height: 64px; bottom: -20px; right: -20px; }
+    .cp-tile-deco--b { width: 36px; height: 36px; bottom: 10px; right: 24px; background: rgba(255,255,255,.06); }
+    .cp-tile-check {
       position: absolute; top: .55rem; right: .55rem;
       width: 22px; height: 22px; border-radius: 50%;
       background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.45);
@@ -191,60 +273,67 @@ const PALETTE = [
       opacity: 0; transform: scale(.5);
       transition: opacity .2s, transform .25s cubic-bezier(.34,1.56,.64,1), background .2s;
     }
-    .cs-tile--on .cs-tile-check {
+    .cp-tile--on .cp-tile-check {
       opacity: 1; transform: scale(1);
       background: rgba(255,255,255,.95); border-color: transparent; color: #000;
     }
-    .cs-tile-name {
+    .cp-tile-name {
       display: block; position: relative; z-index: 1;
       font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: .04em; line-height: 1;
     }
-    .cs-skel {
+
+    /* ── Skeleton ── */
+    .cp-skel {
       height: 76px; border-radius: 14px;
       background: linear-gradient(90deg, rgba(242,238,230,.04) 25%, rgba(242,238,230,.08) 50%, rgba(242,238,230,.04) 75%);
       background-size: 600px 100%; animation: shimmer 1.5s ease-in-out infinite;
     }
     @keyframes shimmer { from { background-position: -400px 0; } to { background-position: 400px 0; } }
-    .cs-error {
+
+    /* ── Error ── */
+    .cp-error {
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
       padding: 2.5rem 1rem; color: var(--muted); font-size: .85rem;
     }
-    .cs-retry {
+    .cp-retry {
       background: none; border: 1px solid var(--bdr); border-radius: 8px;
       padding: .45rem .9rem; color: var(--text); font-size: .8rem; cursor: pointer;
+      touch-action: manipulation;
     }
-    .cs-footer {
-      flex-shrink: 0; padding: 1rem 1.25rem 1.5rem;
+
+    /* ── Footer ── */
+    .cp-footer {
+      flex-shrink: 0; padding: 1rem 1.5rem 1.5rem;
       display: flex; flex-direction: column; gap: .6rem;
       border-top: 1px solid var(--bdr);
-      background: linear-gradient(to bottom, transparent, var(--bg) 30%);
     }
-    .cs-footer-hint {
+    .cp-footer-hint {
       text-align: center; font-family: 'DM Mono', monospace;
       font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
     }
-    .cs-btn {
+    .cp-btn {
       width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: .65rem;
       padding: .85rem 1.5rem; border-radius: 12px;
       background: var(--gold); color: #1a1200; border: none;
       font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: .95rem;
       cursor: pointer; transition: box-shadow .25s, transform .18s, opacity .2s;
       box-shadow: 0 0 32px rgba(240,180,41,.28);
+      touch-action: manipulation;
     }
-    .cs-btn:hover:not(:disabled) { box-shadow: 0 0 56px rgba(240,180,41,.5); transform: translateY(-2px); }
-    .cs-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
-    .cs-btn-arrow {
+    .cp-btn:hover:not(:disabled) { box-shadow: 0 0 56px rgba(240,180,41,.5); transform: translateY(-2px); }
+    .cp-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .cp-btn-arrow {
       width: 28px; height: 28px; background: rgba(0,0,0,.15); border-radius: 8px;
       display: flex; align-items: center; justify-content: center; transition: transform .2s;
     }
-    .cs-btn:hover:not(:disabled) .cs-btn-arrow { transform: translateX(3px); }
-    .cs-skip {
+    .cp-btn:hover:not(:disabled) .cp-btn-arrow { transform: translateX(3px); }
+    .cp-skip {
       background: none; border: none; padding: .4rem;
       font-size: .8rem; font-weight: 500; color: var(--muted); cursor: pointer;
-      transition: color .2s; text-align: center;
+      transition: color .2s; text-align: center; touch-action: manipulation;
     }
-    .cs-skip:hover { color: var(--text); }
-    .cs-spin {
+    .cp-skip:hover { color: var(--text); }
+    .cp-spin {
       width: 16px; height: 16px;
       border: 2px solid rgba(26,18,0,.3); border-top-color: #1a1200;
       border-radius: 50%; animation: spin .7s linear infinite; display: inline-block;
@@ -252,8 +341,7 @@ const PALETTE = [
     @keyframes spin { to { transform: rotate(360deg); } }
   `],
 })
-export class CategorySelectSheet implements OnInit {
-  private readonly dialogRef  = inject(ZardDialogRef);
+export class CategorySelectPage implements OnInit {
   private readonly catService = inject(CategoryService);
   private readonly userSvc    = inject(UserService);
   private readonly authSvc    = inject(AuthService);
@@ -268,12 +356,10 @@ export class CategorySelectSheet implements OnInit {
   readonly skeletons = Array.from({ length: 12 }, (_, i) => i);
 
   ngOnInit() {
-    // ── ONE-TIME GATE ────────────────────────────────────────────────────
-    // If the user already has saved category preferences, skip this sheet
-    // entirely and navigate straight to the dashboard.
+    // If the user already has saved preferences, go straight to the dashboard.
     const alreadySaved = this.authSvc.getSavedCategoryIds();
     if (alreadySaved && alreadySaved.length > 0) {
-      this.finish();
+      this.router.navigate(['/user-dashboard']);
       return;
     }
     this.loadCategories();
@@ -286,7 +372,7 @@ export class CategorySelectSheet implements OnInit {
     this.error.set(false);
     this.catService.getAllCategories().subscribe({
       next:  cats => { this.categories.set(cats); this.loading.set(false); },
-      error: ()   => { this.error.set(true); this.loading.set(false); },
+      error: ()   => { this.error.set(true);       this.loading.set(false); },
     });
   }
 
@@ -311,13 +397,12 @@ export class CategorySelectSheet implements OnInit {
   }
 
   skip() {
-    // Mark as "seen" with empty array so we don't show again
+    // Mark as "seen" with empty array so the page is never shown again.
     this.authSvc.saveCategoryIds([]);
     this.finish();
   }
 
   private finish() {
-    this.dialogRef.close({ selectedIds: Array.from(this.selected()) });
     this.router.navigate(['/user-dashboard']);
   }
 }
