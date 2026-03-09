@@ -11,9 +11,6 @@ import {
   VerifyAccountDto,
 } from '@core/services/auth.service';
 
-// ✅ FIX 1: Define the token locally so there's no missing-module error.
-// Move this to a shared file (e.g. dialog.tokens.ts) whenever your dialog
-// library is ready; just export it from there and import here instead.
 export const ZARD_DIALOG_DATA = new InjectionToken<unknown>('ZardDialogData');
 
 type Step =
@@ -29,19 +26,13 @@ type Step =
   selector: 'app-auth-dialog',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ZardInputDirective, ZardIconComponent],
-  // ✅ FIX 2: Grain texture moved to component CSS (.ad-grain class) so the
-  //    data-URI never appears inside the template HTML – that was tripping the
-  //    Angular template parser and producing the "Opening tag not terminated"
-  //    and "Unexpected closing tag" errors.
   template: `
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
     <div class="ad-shell" (click)="$event.stopPropagation()">
 
-      <!-- Ambient glow -->
       <div class="ad-glow" aria-hidden="true"></div>
-      <!-- ✅ FIX 3: Grain is now a simple class; no inline style with data-URI -->
       <div class="ad-grain" aria-hidden="true"></div>
 
       <!-- Close button -->
@@ -175,7 +166,7 @@ type Step =
 
             <button type="submit" class="ad-cta" [class.ad-cta--gold]="regRole()==='user'"
                     [disabled]="registerForm.invalid || busy()">
-              <span class="flex items-center gap-2">
+              <span class="ad-cta-label">
                 @if (busy()) { <span class="ad-spin"></span> Creating… }
                 @else { Create Account }
               </span>
@@ -217,7 +208,7 @@ type Step =
             <ng-container *ngTemplateOutlet="alertsTpl"></ng-container>
 
             <button type="submit" class="ad-cta ad-cta--gold" [disabled]="verifyForm.invalid || busy()">
-              <span class="flex items-center gap-2">
+              <span class="ad-cta-label">
                 @if (busy()) { <span class="ad-spin ad-spin--dark"></span> Verifying… }
                 @else { Verify &amp; Continue }
               </span>
@@ -309,7 +300,7 @@ type Step =
 
             <button type="submit" class="ad-cta" [class.ad-cta--gold]="loginRole()==='user'"
                     [disabled]="loginForm.invalid || busy()">
-              <span class="flex items-center gap-2">
+              <span class="ad-cta-label">
                 @if (busy()) { <span class="ad-spin"></span> Signing in… }
                 @else { Sign in as {{ loginRole()==='organizer' ? 'Organizer' : 'Attendee' }} }
               </span>
@@ -344,7 +335,7 @@ type Step =
             <ng-container *ngTemplateOutlet="alertsTpl"></ng-container>
 
             <button type="submit" class="ad-cta" [disabled]="forgotForm.invalid || busy()">
-              <span class="flex items-center gap-2">
+              <span class="ad-cta-label">
                 @if (busy()) { <span class="ad-spin"></span> Sending… }
                 @else { Send Reset Link }
               </span>
@@ -385,7 +376,7 @@ type Step =
             <ng-container *ngTemplateOutlet="alertsTpl"></ng-container>
 
             <button type="submit" class="ad-cta" [disabled]="resetForm.invalid || busy()">
-              <span class="flex items-center gap-2">
+              <span class="ad-cta-label">
                 @if (busy()) { <span class="ad-spin"></span> Resetting… }
                 @else { Reset Password }
               </span>
@@ -397,7 +388,6 @@ type Step =
 
       <!-- ══════════════ SHARED TEMPLATES ══════════════ -->
 
-      <!-- Brand -->
       <ng-template #brandTpl>
         <div class="ad-brand">
           <div class="ad-brand-ring">
@@ -409,7 +399,6 @@ type Step =
         </div>
       </ng-template>
 
-      <!-- Back button -->
       <ng-template #backTpl let-target="target">
         <button type="button" (click)="goto(target)" class="ad-back">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
@@ -419,7 +408,6 @@ type Step =
         </button>
       </ng-template>
 
-      <!-- Checkmark badge on role cards -->
       <ng-template #checkTpl let-active="active" let-gold="gold">
         <div class="ad-role-check" [class.ad-role-check--gold]="gold" [class.ad-role-check--visible]="active">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
@@ -428,7 +416,6 @@ type Step =
         </div>
       </ng-template>
 
-      <!-- Error / success alerts -->
       <ng-template #alertsTpl>
         @if (err()) {
           <div role="alert" class="ad-alert ad-alert--err">
@@ -449,10 +436,9 @@ type Step =
         }
       </ng-template>
 
-    </div><!-- /.ad-shell -->
+    </div>
   `,
   styles: [`
-    /* ─── Fonts & host ─────────────────────────────────────────── */
     :host {
       --coral: #FF4433;
       --gold:  #F0B429;
@@ -466,7 +452,6 @@ type Step =
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* ─── Shell ────────────────────────────────────────────────── */
     .ad-shell {
       position: relative;
       width: 100%;
@@ -476,7 +461,6 @@ type Step =
       border-radius: 18px;
     }
 
-    /* ─── Decorative layers ────────────────────────────────────── */
     .ad-glow {
       pointer-events: none;
       position: absolute; top: -80px; left: -60px;
@@ -484,7 +468,7 @@ type Step =
       background: radial-gradient(circle, rgba(255,68,51,.07) 0%, transparent 70%);
       z-index: 0;
     }
-    /* ✅ FIX: grain background is here in CSS, never in the HTML template */
+
     .ad-grain {
       pointer-events: none;
       position: absolute; inset: 0;
@@ -492,7 +476,6 @@ type Step =
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
     }
 
-    /* ─── Close button ──────────────────────────────────────────── */
     .ad-close {
       position: absolute; top: 14px; right: 14px; z-index: 20;
       width: 28px; height: 28px; border-radius: 50%;
@@ -503,7 +486,6 @@ type Step =
     }
     .ad-close:hover { background: rgba(255,255,255,.1); color: rgba(255,255,255,.75); }
 
-    /* ─── Pane & entrance animation ────────────────────────────── */
     .ad-pane {
       position: relative; z-index: 1;
       display: flex; flex-direction: column; gap: 20px;
@@ -515,7 +497,6 @@ type Step =
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ─── Brand ─────────────────────────────────────────────────── */
     .ad-brand { display: flex; align-items: center; gap: 9px; }
     .ad-brand-ring {
       width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
@@ -527,7 +508,6 @@ type Step =
       font-size: 1.15rem; letter-spacing: .08em; color: var(--text);
     }
 
-    /* ─── Progress bar ──────────────────────────────────────────── */
     .ad-progress-wrap { display: flex; flex-direction: column; gap: 5px; }
     .ad-progress-track {
       width: 100%; height: 3px; border-radius: 99px;
@@ -544,17 +524,15 @@ type Step =
       color: rgba(242,238,230,.3);
     }
 
-    /* ─── Heading block ─────────────────────────────────────────── */
     .ad-head { display: flex; flex-direction: column; gap: 5px; }
     .ad-title {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 1.9rem; letter-spacing: .04em; line-height: 1;
       margin: 0; color: var(--text);
     }
-    .ad-sub { font-size: .8rem; color: var(--muted); font-weight: 300; line-height: 1.65; margin: 0; }
-    .ad-em  { color: var(--text); font-weight: 600; font-style: normal; }
+    .ad-sub  { font-size: .8rem; color: var(--muted); font-weight: 300; line-height: 1.65; margin: 0; }
+    .ad-em   { color: var(--text); font-weight: 600; font-style: normal; }
 
-    /* ─── Badge (role label on form) ─────────────────────────────── */
     .ad-badge {
       display: inline-flex; align-items: center; width: fit-content;
       padding: 3px 10px; border-radius: 99px; margin-bottom: 4px;
@@ -564,7 +542,6 @@ type Step =
     }
     .ad-badge--gold { background: rgba(240,180,41,.1); border-color: rgba(240,180,41,.25); color: var(--gold); }
 
-    /* ─── Role cards ────────────────────────────────────────────── */
     .ad-roles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .ad-role {
       position: relative;
@@ -587,7 +564,6 @@ type Step =
       box-shadow: 0 0 24px rgba(240,180,41,.1);
     }
 
-    /* Check badge inside role card */
     .ad-role-check {
       position: absolute; top: 8px; right: 8px;
       width: 20px; height: 20px; border-radius: 50%;
@@ -596,7 +572,7 @@ type Step =
       opacity: 0; transform: scale(.5);
       transition: opacity .2s, transform .2s;
     }
-    .ad-role-check--gold  { background: var(--gold); color: #1a1200; }
+    .ad-role-check--gold    { background: var(--gold); color: #1a1200; }
     .ad-role-check--visible { opacity: 1; transform: scale(1); }
 
     .ad-role-icon {
@@ -612,7 +588,6 @@ type Step =
     }
     .ad-role-hint { font-size: .66rem; color: var(--muted); font-weight: 300; line-height: 1.35; }
 
-    /* ─── Verify hero ───────────────────────────────────────────── */
     .ad-verify-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
     .ad-verify-orb {
       width: 64px; height: 64px; border-radius: 18px;
@@ -621,15 +596,13 @@ type Step =
       color: var(--gold);
     }
 
-    /* ─── Form ──────────────────────────────────────────────────── */
-    .ad-form  { display: flex; flex-direction: column; gap: 13px; }
-    .ad-field { display: flex; flex-direction: column; gap: 6px; }
-    .ad-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ad-form      { display: flex; flex-direction: column; gap: 13px; }
+    .ad-field     { display: flex; flex-direction: column; gap: 6px; }
+    .ad-row       { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .ad-label-row { display: flex; align-items: center; justify-content: space-between; }
-    .ad-label { font-size: .72rem; font-weight: 600; color: rgba(242,238,230,.62); letter-spacing: .01em; }
-    .ad-ferr  { font-size: .68rem; color: var(--coral); }
+    .ad-label     { font-size: .72rem; font-weight: 600; color: rgba(242,238,230,.62); letter-spacing: .01em; }
+    .ad-ferr      { font-size: .68rem; color: var(--coral); }
 
-    /* ─── Input ─────────────────────────────────────────────────── */
     .ad-input {
       width: 100%; box-sizing: border-box;
       background: var(--bg2) !important;
@@ -654,7 +627,6 @@ type Step =
       text-align: center !important;
     }
 
-    /* ─── CTA button ────────────────────────────────────────────── */
     .ad-cta {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
       padding: .78rem 1rem .78rem 1.25rem; border: none; border-radius: 12px;
@@ -678,6 +650,14 @@ type Step =
       box-shadow: 0 0 28px rgba(240,180,41,.22);
     }
     .ad-cta--gold:hover:not(:disabled) { box-shadow: 0 0 48px rgba(240,180,41,.42); }
+
+    /* ── FIX: replaced flex+gap span with a plain class to avoid
+       Tailwind utility classes (flex/items-center/gap-2) that may
+       not be available inside a component shadow / encapsulation. ── */
+    .ad-cta-label {
+      display: flex; align-items: center; gap: 8px;
+    }
+
     .ad-cta-arrow {
       width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -686,21 +666,15 @@ type Step =
     }
     .ad-cta:hover:not(:disabled) .ad-cta-arrow { transform: translateX(3px); }
 
-    /* ─── Alerts ────────────────────────────────────────────────── */
     .ad-alert {
       display: flex; align-items: flex-start; gap: 8px;
       padding: .6rem .85rem; border-radius: 9px;
       font-size: .78rem; line-height: 1.5;
     }
-    .ad-alert--err {
-      background: rgba(255,68,51,.1); border: 1px solid rgba(255,68,51,.22); color: #ff7060;
-    }
-    .ad-alert--ok {
-      background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2); color: #4ade80;
-    }
+    .ad-alert--err { background: rgba(255,68,51,.1); border: 1px solid rgba(255,68,51,.22); color: #ff7060; }
+    .ad-alert--ok  { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2);  color: #4ade80; }
     .ad-alert-icon { flex-shrink: 0; margin-top: 1px; }
 
-    /* ─── Back button ───────────────────────────────────────────── */
     .ad-back {
       display: inline-flex; align-items: center; gap: 5px;
       background: none; border: none; padding: 0; min-height: 28px;
@@ -710,7 +684,6 @@ type Step =
     }
     .ad-back:hover { color: var(--text); }
 
-    /* ─── Links ─────────────────────────────────────────────────── */
     .ad-link {
       background: none; border: none; padding: 0;
       color: var(--coral); font-weight: 600;
@@ -720,10 +693,8 @@ type Step =
     .ad-link:hover { opacity: .75; }
     .ad-link--sm { font-size: .72rem; font-weight: 500; }
 
-    /* ─── Footer text ───────────────────────────────────────────── */
     .ad-footer-text { text-align: center; font-size: .78rem; color: var(--muted); }
 
-    /* ─── Spinner ───────────────────────────────────────────────── */
     .ad-spin {
       display: inline-block; width: 14px; height: 14px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,.28); border-top-color: #fff;
@@ -732,7 +703,6 @@ type Step =
     .ad-spin--dark { border-color: rgba(0,0,0,.2); border-top-color: #1a1200; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ─── Responsive ────────────────────────────────────────────── */
     @media (max-width: 360px) { .ad-row { grid-template-columns: 1fr; } }
   `],
 })
@@ -742,8 +712,6 @@ export class AuthDialog implements OnInit, OnDestroy {
   private readonly auth      = inject(AuthService);
   private readonly router    = inject(Router);
 
-  // ✅ FIX 1: Token injected properly — defined as InjectionToken above,
-  //    no external module import needed.
   private readonly dialogData: { mode?: 'login' | 'register' } =
     (inject(ZARD_DIALOG_DATA, { optional: true }) as any) ?? {};
 
