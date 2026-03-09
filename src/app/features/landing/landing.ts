@@ -792,7 +792,14 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (this.isUserLoggedIn) {
       // redirect to event creation
     } else {
-      this.dialogService.create({ zContent: AuthDialog, zWidth: '425px' });
+      this.dialogService.create({
+        zContent: AuthDialog,
+        zWidth: '425px',
+        zHideFooter: true,   // ← hides Cancel/OK buttons
+        zClosable: false,    // ← hides the wrapper X (AuthDialog has its own)
+        zTitle: undefined,   // ← no title bar
+        zDescription: undefined,
+      });
     }
   }
 
