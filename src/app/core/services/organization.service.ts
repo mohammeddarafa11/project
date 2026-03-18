@@ -6,9 +6,28 @@ import { catchError, map, tap } from 'rxjs/operators';
 
 export interface Organization {
   id: number;
-  name: string;
-  email: string;
-  // Add other organization fields as needed
+  name: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
+  region?: string | null;
+  bio?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  phoneNumber?: string | null;
+  status?: number;
+  officialContract?: string | null;
+}
+
+export interface UpdateOrganizationDto {
+  name?: string | null;
+  city?: string | null;
+  region?: string | null;
+  bio?: string | null;
+  phoneNumber?: string | null;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
 }
 
 export interface ServiceResponse<T> {
@@ -18,39 +37,50 @@ export interface ServiceResponse<T> {
   errors: string[] | null;
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class OrganizationService {
   private readonly baseURL = 'https://eventora.runasp.net/api/Organization';
   private currentOrganization$ = new BehaviorSubject<Organization | null>(null);
 
   constructor(private http: HttpClient) {}
 
-  // Get current authenticated organization profile
-  getCurrentOrganization(): Observable<Organization> {
-    return this.http
-      .get<ServiceResponse<Organization>>(`${this.baseURL}/profile`)
-      .pipe(
-        map((response) => {
-          if (response.success) {
-            return response.data;
-          }
-          throw new Error(
-            response.message || 'Failed to fetch organization profile',
-          );
-        }),
-        tap((org) => this.currentOrganization$.next(org)),
-        catchError(this.handleError),
-      );
+  /** GET /api/Organization/all */
+  getAllOrganizations(): Observable<Organization[]> {
+    return this.http.get<ServiceResponse<Organization[]>>(`${this.baseURL}/all`).pipe(
+      map(r => {
+        if (r.success) return r.data ?? [];
+        throw new Error(r.message || 'Failed to fetch organizations');
+      }),
+      catchError(this.handleError),
+    );
   }
 
-  // Get cached organization (synchronous)
+  /** GET /api/Organization/{organizationId} */
+  getOrganizationById(organizationId: number): Observable<Organization> {
+    return this.http.get<ServiceResponse<Organization>>(`${this.baseURL}/${organizationId}`).pipe(
+      map(r => {
+        if (r.success) return r.data;
+        throw new Error(r.message || 'Failed to fetch organization');
+      }),
+      tap(org => this.currentOrganization$.next(org)),
+      catchError(this.handleError),
+    );
+  }
+
+  /** PUT /api/Organization/{organizationId} */
+  updateOrganization(organizationId: number, dto: UpdateOrganizationDto): Observable<void> {
+    return this.http.put<void>(`${this.baseURL}/${organizationId}`, dto).pipe(
+      map(() => undefined),
+      catchError(this.handleError),
+    );
+  }
+
+  // ── Cache helpers ─────────────────────────────────────────────────────────
+
   getCachedOrganization(): Organization | null {
     return this.currentOrganization$.value;
   }
 
-  // Observable of current organization
   get organization$(): Observable<Organization | null> {
     return this.currentOrganization$.asObservable();
   }
@@ -61,19 +91,13 @@ export class OrganizationService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'An error occurred';
-
     if (error.error instanceof ErrorEvent) {
       errorMessage = `Error: ${error.error.message}`;
     } else {
-      if (error.error?.message) {
-        errorMessage = error.error.message;
-      } else if (error.error?.errors?.length) {
-        errorMessage = error.error.errors.join(', ');
-      } else {
-        errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
-      }
+      errorMessage = error.error?.message
+        || error.error?.errors?.join(', ')
+        || `Error Code: ${error.status}\nMessage: ${error.message}`;
     }
-
     console.error(errorMessage);
     return throwError(() => new Error(errorMessage));
   }

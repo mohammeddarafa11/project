@@ -3,12 +3,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { UserProfile } from './auth.service';
-import { Category } from '@core/services/category'; // ← required for getFavorites()
 
-// ─────────────────────────────────────────────
-// MODELS
-// ─────────────────────────────────────────────
+export interface Category {
+  id: number;
+  name: string | null;
+}
 
 export interface ServiceResponse<T> {
   data: T;
@@ -17,15 +16,32 @@ export interface ServiceResponse<T> {
   errors: string[] | null;
 }
 
+export interface UserProfile {
+  id: number;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phoneNumber?: string | null;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
+  region?: string | null;
+  street?: string | null;
+  role?: string | null;
+  isVerified?: boolean;
+}
+
 export interface UpdateUserDto {
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
-  logoUrl?: string;
-  coverUrl?: string;
-  city?: string;
-  region?: string;
-  street?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phoneNumber?: string | null;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  city?: string | null;
+  region?: string | null;
+  street?: string | null;
 }
 
 export interface UserBooking {
@@ -47,152 +63,99 @@ export interface UserBooking {
   };
 }
 
-// ─────────────────────────────────────────────
-// SERVICE
-// ─────────────────────────────────────────────
-
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly http    = inject(HttpClient);
   private readonly baseUrl = 'https://eventora.runasp.net/api';
 
-  private currentUser$ = new BehaviorSubject<UserProfile | null>(null);
+  private _user$ = new BehaviorSubject<UserProfile | null>(null);
+  private _favorites$ = new BehaviorSubject<Category[]>([]);
 
-  /** Observable of the currently-logged-in user profile */
-  get user$(): Observable<UserProfile | null> {
-    return this.currentUser$.asObservable();
-  }
+  get user$(): Observable<UserProfile | null> { return this._user$.asObservable(); }
+  get favorites$(): Observable<Category[]> { return this._favorites$.asObservable(); }
 
-  // ══════════════════════════════════════════
-  // PROFILE
-  // ══════════════════════════════════════════
+  // ── Profile ───────────────────────────────────────────────────────────────
 
-  /**
-   * Fetch the current authenticated user's profile.
-   * Maps GET /api/User → UserProfile
-   */
+  /** GET /api/User */
   getCurrentUser(): Observable<UserProfile> {
-    return this.http
-      .get<ServiceResponse<UserProfile>>(`${this.baseUrl}/User`)
-      .pipe(
-        map(response => {
-          if (response.success) return response.data;
-          throw new Error(response.message || 'Failed to fetch user profile');
-        }),
-        tap(user => {
-          this.currentUser$.next(user);
-          localStorage.setItem('user_profile', JSON.stringify(user));
-        }),
-        catchError(this.handleError),
-      );
+    return this.http.get<ServiceResponse<UserProfile>>(`${this.baseUrl}/User`).pipe(
+      map(r => {
+        if (r.success) return r.data;
+        throw new Error(r.message || 'Failed to fetch user profile');
+      }),
+      tap(user => this._user$.next(user)),
+      catchError(this.handleError),
+    );
   }
 
-  /**
-   * Update user profile.
-   * PUT /api/User/{id}
-   */
-  updateUser(id: number, dto: UpdateUserDto): Observable<UserProfile> {
-    return this.http
-      .put<ServiceResponse<UserProfile>>(`${this.baseUrl}/User/${id}`, dto)
-      .pipe(
-        map(response => {
-          if (response.success) return response.data;
-          throw new Error(response.message || 'Failed to update user');
-        }),
-        tap(user => {
-          this.currentUser$.next(user);
-          localStorage.setItem('user_profile', JSON.stringify(user));
-        }),
-        catchError(this.handleError),
-      );
+  /** PUT /api/User/{id} */
+  updateUser(id: number, dto: UpdateUserDto): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/User/${id}`, dto).pipe(
+      map(() => undefined),
+      catchError(this.handleError),
+    );
   }
 
-  // ══════════════════════════════════════════
-  // BOOKINGS
-  // ══════════════════════════════════════════
+  getCachedUser(): UserProfile | null { return this._user$.value; }
 
-  /** GET /api/Ticket/MyBookings */
-  getMyBookings(): Observable<UserBooking[]> {
-    return this.http
-      .get<ServiceResponse<UserBooking[]>>(`${this.baseUrl}/Ticket/MyBookings`)
-      .pipe(
-        map(response => {
-          if (response.success) return response.data ?? [];
-          throw new Error(response.message || 'Failed to fetch bookings');
-        }),
-        catchError(this.handleError),
-      );
-  }
+  clearUser(): void { this._user$.next(null); }
 
-  // ══════════════════════════════════════════
-  // FOLLOW / FAVORITES
-  // ══════════════════════════════════════════
+  // ── Favorites ─────────────────────────────────────────────────────────────
 
-  /** POST /api/User/toggle-follow/{organizationId} */
-  toggleFollow(organizationId: number): Observable<ServiceResponse<unknown>> {
-    return this.http
-      .post<ServiceResponse<unknown>>(
-        `${this.baseUrl}/User/toggle-follow/${organizationId}`,
-        {},
-      )
-      .pipe(catchError(this.handleError));
-  }
-
-  /** POST /api/User/add-favorites  (array of categoryIds) */
-  addFavorites(categoryIds: number[]): Observable<ServiceResponse<unknown>> {
-    return this.http
-      .post<ServiceResponse<unknown>>(
-        `${this.baseUrl}/User/add-favorites`,
-        categoryIds,
-      )
-      .pipe(catchError(this.handleError));
-  }
-
-  /** GET /api/User/favorites — returns the user's saved category list */
+  /** GET /api/User/favorites */
   getFavorites(): Observable<Category[]> {
-    return this.http
-      .get<ServiceResponse<Category[]>>(`${this.baseUrl}/User/favorites`)
-      .pipe(
-        map(r => (r.success ? r.data ?? [] : [])),
-        catchError(this.handleError),
-      );
+    return this.http.get<ServiceResponse<Category[]>>(`${this.baseUrl}/User/favorites`).pipe(
+      map(r => r.success ? (r.data ?? []) : []),
+      tap(cats => this._favorites$.next(cats)),
+      catchError(this.handleError),
+    );
+  }
+
+  /** POST /api/User/add-favorites */
+  addFavorites(categoryIds: number[]): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/User/add-favorites`, categoryIds).pipe(
+      map(() => undefined),
+      catchError(this.handleError),
+    );
   }
 
   /** DELETE /api/User/remove-favorite/{categoryId} */
-  removeFavorite(categoryId: number): Observable<ServiceResponse<unknown>> {
-    return this.http
-      .delete<ServiceResponse<unknown>>(
-        `${this.baseUrl}/User/remove-favorite/${categoryId}`,
-      )
-      .pipe(catchError(this.handleError));
+  removeFavorite(categoryId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/User/remove-favorite/${categoryId}`).pipe(
+      map(() => undefined),
+      tap(() => this._favorites$.next(this._favorites$.value.filter(c => c.id !== categoryId))),
+      catchError(this.handleError),
+    );
   }
 
-  // ══════════════════════════════════════════
-  // CACHE HELPERS
-  // ══════════════════════════════════════════
+  // ── Follow ────────────────────────────────────────────────────────────────
 
-  getCachedUser(): UserProfile | null {
-    return this.currentUser$.value;
+  /** POST /api/User/toggle-follow/{organizationId} */
+  toggleFollow(organizationId: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/User/toggle-follow/${organizationId}`, {}).pipe(
+      map(() => undefined),
+      catchError(this.handleError),
+    );
   }
 
-  clearUser(): void {
-    this.currentUser$.next(null);
-    localStorage.removeItem('user_profile');
-  }
+  // ── Bookings ──────────────────────────────────────────────────────────────
 
-  // ══════════════════════════════════════════
-  // ERROR HANDLING
-  // ══════════════════════════════════════════
+  /** GET /api/Ticket/MyBookings */
+  getMyBookings(): Observable<UserBooking[]> {
+    return this.http.get<ServiceResponse<UserBooking[]>>(`${this.baseUrl}/Ticket/MyBookings`).pipe(
+      map(r => r.success ? (r.data ?? []) : []),
+      catchError(this.handleError),
+    );
+  }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     let message = 'An error occurred';
     if (error.error instanceof ErrorEvent) {
       message = error.error.message;
     } else {
-      message =
-        error.error?.message ||
-        error.error?.errors?.join(', ') ||
-        `Error ${error.status}: ${error.message}`;
+      message = error.error?.message
+        || error.error?.errors?.join(', ')
+        || `Error ${error.status}: ${error.message}`;
     }
     console.error('[UserService]', message);
     return throwError(() => new Error(message));

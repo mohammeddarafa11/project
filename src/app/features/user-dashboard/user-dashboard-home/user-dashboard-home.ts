@@ -1,12 +1,4 @@
 // src/app/features/user-dashboard/user-dashboard-home/user-dashboard-home.ts
-//
-// ROOT CAUSE FIXES:
-//  1. Categories → GET /api/User/favorites (not localStorage)
-//  2. Org discovery → organizationId from events → GET /api/Organization/{id}
-//     (because organization: null in event list responses)
-//  3. "Who to Follow" section always visible in feed (Spotify-style)
-//  4. Four feed sections: For You · Who to Follow · Following · Trending
-//
 import {
   Component, inject, signal, computed, OnInit, OnDestroy,
   ElementRef, ViewChildren, QueryList,
@@ -22,7 +14,7 @@ import { EventService } from '@core/services/event.service';
 import { FollowService } from '@core/services/follow.service';
 import { Event as EsEvent } from '@core/models/event.model';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDate(iso?: string) {
   if (!iso) return '';
@@ -33,6 +25,26 @@ function daysUntil(iso?: string): number | null {
   if (!iso) return null;
   const d = new Date(iso).getTime() - Date.now();
   return d < 0 ? null : Math.ceil(d / 86_400_000);
+}
+
+/**
+ * Normalises a raw API event object so snake_case fields are always present.
+ * Needed for direct HTTP calls that bypass EventService.mapEvent().
+ */
+function normalizeEvent(e: any): EsEvent {
+  return {
+    ...e,
+    start_time:          e.start_time          ?? e.startTime,
+    end_time:            e.end_time             ?? e.endTime,
+    event_img_url:       e.event_img_url        ?? e.eventImgUrl,
+    event_location_type: e.event_location_type  ?? e.eventLocationType,
+    event_type:          e.event_type           ?? e.eventType,
+    online_url:          e.online_url           ?? e.onlineUrl,
+    nameOfPlace:         e.nameOfPlace          ?? e.name_of_place,
+  } as EsEvent;
+}
+function normalizeEvents(arr: any[]): EsEvent[] {
+  return (arr ?? []).map(normalizeEvent);
 }
 
 interface CategoryRow { cat: Category; events: EsEvent[]; color: string; }
@@ -183,9 +195,7 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
           </div>
         }
 
-        <!-- ══════════════════════════════════════ -->
-        <!--  A: FOR YOU                           -->
-        <!-- ══════════════════════════════════════ -->
+        <!-- A: FOR YOU -->
         @if (filteredRows().length > 0) {
           <div class="udh-section-hd">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -219,9 +229,7 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
           }
         }
 
-        <!-- ══════════════════════════════════════ -->
-        <!--  B: WHO TO FOLLOW  (Spotify-style)    -->
-        <!-- ══════════════════════════════════════ -->
+        <!-- B: WHO TO FOLLOW -->
         @if (discoveredOrgs().length > 0 || orgsLoading()) {
           <div class="udh-section-hd udh-section-hd--follow">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -241,14 +249,11 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
                   <div class="udh-org-card" [style.animation-delay]="i*55+'ms'">
                     <div class="udh-org-card__av" [class.udh-org-card__av--default]="!org.logoUrl">
                       @if (org.logoUrl) {
-                        <img [src]="org.logoUrl" [alt]="org.name" class="udh-org-card__img"
-                             (error)="onImgError($event)"/>
+                        <img [src]="org.logoUrl" [alt]="org.name" class="udh-org-card__img" (error)="onImgError($event)"/>
                       } @else {
                         <div class="udh-org-card__default">
-                          <svg width="26" height="26" fill="none" stroke="currentColor"
-                               stroke-width="1.4" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                          <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                           </svg>
                           <span class="udh-org-card__init-letter">{{ org.name.charAt(0).toUpperCase() }}</span>
                         </div>
@@ -284,9 +289,7 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
           </section>
         }
 
-        <!-- ══════════════════════════════════════ -->
-        <!--  C: FROM ORGS YOU FOLLOW              -->
-        <!-- ══════════════════════════════════════ -->
+        <!-- C: FROM ORGS YOU FOLLOW -->
         @if (followingEvents().length > 0) {
           <div class="udh-section-hd udh-section-hd--following">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -308,9 +311,7 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
           </section>
         }
 
-        <!-- ══════════════════════════════════════ -->
-        <!--  D: TRENDING                          -->
-        <!-- ══════════════════════════════════════ -->
+        <!-- D: TRENDING -->
         @if (trendingEvents().length > 0) {
           <div class="udh-section-hd udh-section-hd--trending">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -396,21 +397,12 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
       --bdr:rgba(242,238,230,.07);--hi:rgba(242,238,230,.12);
       font-family:'Plus Jakarta Sans',sans-serif;display:block;background:var(--bg);color:var(--text);min-height:100%;
     }
-    .udh-tag {
-      display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;
-      font-family:'DM Mono',monospace;font-size:.59rem;letter-spacing:.12em;text-transform:uppercase;
-      background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.2);color:var(--gold);
-    }
-    .udh-tag--dim  { background:rgba(242,238,230,.05);border-color:var(--bdr);color:var(--muted); }
-    .udh-tag--live { background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.25);color:var(--green); }
-    .udh-pulse,.udh-mini-pulse {
-      display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);
-      animation:pulse 1.4s ease-in-out infinite;
-    }
+    .udh-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-family:'DM Mono',monospace;font-size:.59rem;letter-spacing:.12em;text-transform:uppercase;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.2);color:var(--gold);}
+    .udh-tag--dim{background:rgba(242,238,230,.05);border-color:var(--bdr);color:var(--muted);}
+    .udh-tag--live{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.25);color:var(--green);}
+    .udh-pulse,.udh-mini-pulse{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s ease-in-out infinite;}
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
     .udh-em{color:var(--gold);font-style:normal;}
-
-    /* Hero */
     .udh-hero{position:relative;overflow:hidden;padding:2.5rem 1.75rem 2rem;}
     .udh-orb-a,.udh-orb-b{position:absolute;border-radius:50%;pointer-events:none;z-index:0;}
     .udh-orb-a{width:420px;height:420px;top:-160px;right:-80px;background:radial-gradient(circle,rgba(240,180,41,.07) 0%,transparent 65%);}
@@ -419,46 +411,21 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
     .udh-hero__eye{display:flex;gap:.5rem;margin-bottom:.9rem;}
     .udh-hero__title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.8rem,7vw,4.8rem);letter-spacing:.03em;line-height:.9;color:var(--text);margin:0 0 .65rem;}
     .udh-hero__sub{font-size:.84rem;color:var(--muted);margin:0;font-weight:300;line-height:1.6;}
-
-    /* Chips */
     .udh-chips-wrap{padding:0 1.75rem .75rem;}
     .udh-chips{display:flex;gap:.45rem;overflow-x:auto;padding:.2rem .05rem .4rem;scrollbar-width:none;scroll-snap-type:x mandatory;}
     .udh-chips::-webkit-scrollbar{display:none;}
-    .udh-chip{
-      flex-shrink:0;display:inline-flex;align-items:center;gap:.35rem;
-      padding:.38rem .88rem;border-radius:100px;
-      background:var(--cb,rgba(242,238,230,.06));border:1.5px solid var(--cd,rgba(242,238,230,.1));color:var(--ct,var(--muted));
-      font-family:'Plus Jakarta Sans',sans-serif;font-size:.76rem;font-weight:600;
-      cursor:pointer;user-select:none;transition:all .2s;scroll-snap-align:start;-webkit-tap-highlight-color:transparent;
-    }
+    .udh-chip{flex-shrink:0;display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .88rem;border-radius:100px;background:var(--cb,rgba(242,238,230,.06));border:1.5px solid var(--cd,rgba(242,238,230,.1));color:var(--ct,var(--muted));font-family:'Plus Jakarta Sans',sans-serif;font-size:.76rem;font-weight:600;cursor:pointer;user-select:none;transition:all .2s;scroll-snap-align:start;-webkit-tap-highlight-color:transparent;}
     .udh-chip--active{border-color:var(--ct)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ct) 18%,transparent);}
     .udh-chip--add{background:rgba(242,238,230,.04)!important;border-color:rgba(242,238,230,.1)!important;color:var(--muted)!important;}
     .udh-chip--add:hover{border-color:rgba(242,238,230,.22)!important;color:var(--text)!important;}
     .udh-clear{background:none;border:none;padding:0;font-size:.72rem;color:var(--coral);font-weight:600;cursor:pointer;margin-left:auto;}
-    .udh-rm-toast{
-      display:flex;align-items:center;gap:.5rem;margin-top:.35rem;
-      padding:.45rem .75rem;border-radius:9px;
-      background:rgba(255,68,51,.1);border:1px solid rgba(255,68,51,.22);
-      color:var(--coral);font-size:.75rem;font-weight:500;animation:fadeIn .2s both;
-    }
+    .udh-rm-toast{display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.45rem .75rem;border-radius:9px;background:rgba(255,68,51,.1);border:1px solid rgba(255,68,51,.22);color:var(--coral);font-size:.75rem;font-weight:500;animation:fadeIn .2s both;}
     @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-
-    /* Section headers */
-    .udh-section-hd{
-      display:flex;align-items:center;gap:.55rem;padding:0 1.75rem .7rem;
-      font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
-    }
-    .udh-section-hd--follow{color:#a78bfa;}
-    .udh-section-hd--following{color:#a78bfa;}
-    .udh-section-hd--trending{color:var(--coral);}
+    .udh-section-hd{display:flex;align-items:center;gap:.55rem;padding:0 1.75rem .7rem;font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+    .udh-section-hd--follow{color:#a78bfa;}.udh-section-hd--following{color:#a78bfa;}.udh-section-hd--trending{color:var(--coral);}
     .udh-section-hd__sub{font-size:.55rem;color:var(--muted);text-transform:none;letter-spacing:.06em;margin-left:.25rem;}
-
-    /* Spotlight */
     .udh-spotlight-wrap{padding:0 1.75rem 2.5rem;}
-    .udh-spotlight{
-      position:relative;border-radius:20px;overflow:hidden;height:320px;
-      cursor:pointer;border:1px solid var(--bdr);transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s;
-    }
+    .udh-spotlight{position:relative;border-radius:20px;overflow:hidden;height:320px;cursor:pointer;border:1px solid var(--bdr);transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s;}
     .udh-spotlight:hover{transform:translateY(-3px);box-shadow:0 24px 60px rgba(0,0,0,.6);}
     .udh-spotlight__bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.22,1,.36,1);}
     .udh-spotlight:hover .udh-spotlight__bg{transform:scale(1.05);}
@@ -467,17 +434,10 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
     .udh-spotlight__content{position:relative;z-index:1;padding:1.75rem 2rem;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:.75rem;max-width:500px;}
     .udh-spotlight__tags{display:flex;gap:.4rem;flex-wrap:wrap;}
     .udh-spotlight__title{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.7rem,4vw,2.6rem);letter-spacing:.03em;line-height:.95;color:var(--text);margin:0;}
-    .udh-spotlight__btn{
-      display:inline-flex;align-items:center;gap:.5rem;width:fit-content;
-      padding:.6rem 1.25rem;border-radius:10px;background:var(--gold);color:#1a1200;border:none;
-      font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.88rem;
-      cursor:pointer;transition:box-shadow .25s,transform .2s;box-shadow:0 0 24px rgba(240,180,41,.28);
-    }
+    .udh-spotlight__btn{display:inline-flex;align-items:center;gap:.5rem;width:fit-content;padding:.6rem 1.25rem;border-radius:10px;background:var(--gold);color:#1a1200;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer;transition:box-shadow .25s,transform .2s;box-shadow:0 0 24px rgba(240,180,41,.28);}
     .udh-spotlight__btn:hover{box-shadow:0 0 44px rgba(240,180,41,.5);transform:translateY(-2px);}
     .udh-skel-hero{height:320px;border-radius:20px;background:linear-gradient(90deg,rgba(242,238,230,.04) 25%,rgba(242,238,230,.07) 50%,rgba(242,238,230,.04) 75%);background-size:800px 100%;animation:shimmer 1.5s ease-in-out infinite;}
     @keyframes shimmer{from{background-position:-600px 0}to{background-position:600px 0}}
-
-    /* Rows */
     .udh-row{--rc:var(--gold);position:relative;margin-bottom:2rem;}
     .udh-row::after{content:'';pointer-events:none;position:absolute;top:36px;right:0;bottom:0;width:52px;background:linear-gradient(to left,var(--bg) 0%,transparent 100%);z-index:2;}
     .udh-row__head{display:flex;align-items:center;gap:.7rem;padding:0 1.75rem .75rem;}
@@ -491,54 +451,21 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
     .udh-row__track{display:flex;gap:.75rem;overflow-x:auto;overflow-y:visible;padding:.2rem 1.75rem .85rem;scrollbar-width:none;scroll-behavior:smooth;scroll-snap-type:x mandatory;}
     .udh-row__track::-webkit-scrollbar{display:none;}
     .udh-row__track--orgs{padding-top:.3rem;}
-
-    /* Org cards (Spotify) */
-    .udh-org-card{
-      flex-shrink:0;width:158px;background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;
-      padding:1.1rem .9rem .9rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;
-      text-align:center;cursor:default;scroll-snap-align:start;
-      transition:border-color .2s,box-shadow .25s,transform .22s cubic-bezier(.22,1,.36,1);
-      animation:cardIn .45s cubic-bezier(.22,1,.36,1) both;
-    }
+    .udh-org-card{flex-shrink:0;width:158px;background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;padding:1.1rem .9rem .9rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;text-align:center;cursor:default;scroll-snap-align:start;transition:border-color .2s,box-shadow .25s,transform .22s cubic-bezier(.22,1,.36,1);animation:cardIn .45s cubic-bezier(.22,1,.36,1) both;}
     .udh-org-card:hover{border-color:rgba(167,139,250,.3);box-shadow:0 12px 32px rgba(0,0,0,.45);transform:translateY(-4px);}
     .udh-org-skel{flex-shrink:0;width:158px;height:218px;border-radius:16px;background:linear-gradient(90deg,rgba(242,238,230,.04) 25%,rgba(242,238,230,.07) 50%,rgba(242,238,230,.04) 75%);background-size:600px 100%;animation:shimmer 1.5s ease-in-out infinite;scroll-snap-align:start;}
     .udh-org-card__av{width:64px;height:64px;border-radius:50%;overflow:hidden;background:rgba(167,139,250,.12);border:2px solid rgba(167,139,250,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .udh-org-card__img{width:100%;height:100%;object-fit:cover;}
-
-    /* Default avatar when no logo */
-    .udh-org-card__av--default {
-      background: linear-gradient(135deg,rgba(167,139,250,.18) 0%,rgba(99,102,241,.22) 100%) !important;
-      border-color: rgba(167,139,250,.35) !important;
-    }
-    .udh-org-card__default {
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:2px;width:100%;height:100%;
-      color:rgba(167,139,250,.75);
-    }
-    .udh-org-card__init-letter {
-      font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;
-      color:rgba(167,139,250,.55);line-height:1;
-    }
+    .udh-org-card__av--default{background:linear-gradient(135deg,rgba(167,139,250,.18) 0%,rgba(99,102,241,.22) 100%)!important;border-color:rgba(167,139,250,.35)!important;}
+    .udh-org-card__default{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;height:100%;color:rgba(167,139,250,.75);}
+    .udh-org-card__init-letter{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:rgba(167,139,250,.55);line-height:1;}
     .udh-org-card__name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.04em;color:var(--text);margin:0;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
     .udh-org-card__city{display:flex;align-items:center;gap:3px;font-size:.65rem;color:var(--muted);margin:0;}
     .udh-org-card__events{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;color:rgba(167,139,250,.65);margin:0;}
-    .udh-org-card__btn{
-      display:inline-flex;align-items:center;gap:.35rem;
-      padding:.38rem .9rem;border-radius:100px;
-      border:1.5px solid rgba(167,139,250,.45);background:transparent;color:#a78bfa;
-      font-family:'Plus Jakarta Sans',sans-serif;font-size:.72rem;font-weight:600;
-      cursor:pointer;transition:all .2s;white-space:nowrap;margin-top:.25rem;
-    }
+    .udh-org-card__btn{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .9rem;border-radius:100px;border:1.5px solid rgba(167,139,250,.45);background:transparent;color:#a78bfa;font-family:'Plus Jakarta Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;margin-top:.25rem;}
     .udh-org-card__btn:hover{background:rgba(167,139,250,.12);}
     .udh-org-card__btn--on{background:rgba(167,139,250,.15)!important;border-color:#a78bfa!important;}
-
-    /* Event cards */
-    .udh-card{
-      flex-shrink:0;width:210px;border-radius:14px;overflow:hidden;
-      background:var(--bg2);border:1px solid var(--bdr);cursor:pointer;position:relative;
-      transition:transform .25s cubic-bezier(.22,1,.36,1),border-color .2s,box-shadow .2s;
-      animation:cardIn .45s cubic-bezier(.22,1,.36,1) both;scroll-snap-align:start;
-    }
+    .udh-card{flex-shrink:0;width:210px;border-radius:14px;overflow:hidden;background:var(--bg2);border:1px solid var(--bdr);cursor:pointer;position:relative;transition:transform .25s cubic-bezier(.22,1,.36,1),border-color .2s,box-shadow .2s;animation:cardIn .45s cubic-bezier(.22,1,.36,1) both;scroll-snap-align:start;}
     @keyframes cardIn{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
     .udh-card:hover{transform:translateY(-7px) scale(1.025);border-color:var(--hi);box-shadow:0 18px 44px rgba(0,0,0,.55);z-index:10;}
     .udh-card__img-wrap{position:relative;aspect-ratio:3/2;overflow:hidden;background:var(--bg3);}
@@ -557,28 +484,20 @@ const CHIP_TXT   = ['#F0B429','#FF4433','#1DB954','#a78bfa','#0ea5e9','#f97316',
     .udh-card__price{font-family:'DM Mono',monospace;font-size:.64rem;color:var(--gold);letter-spacing:.06em;}
     .udh-card__arrow{font-size:.7rem;font-weight:700;color:var(--rc,var(--gold));opacity:0;transform:translateX(-4px);transition:opacity .2s,transform .2s;}
     .udh-card:hover .udh-card__arrow{opacity:1;transform:translateX(0);}
-
-    /* Skeletons */
     .udh-skel{background:linear-gradient(90deg,rgba(242,238,230,.04) 25%,rgba(242,238,230,.07) 50%,rgba(242,238,230,.04) 75%);background-size:600px 100%;animation:shimmer 1.5s ease-in-out infinite;border-radius:6px;}
     .udh-skel-card{flex-shrink:0;width:210px;border-radius:14px;overflow:hidden;background:var(--bg2);border:1px solid var(--bdr);scroll-snap-align:start;}
     .udh-skel-card__body{padding:.7rem .85rem;display:flex;flex-direction:column;gap:.38rem;}
-
-    /* Empty */
     .udh-empty{display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:5rem 1rem;text-align:center;}
     .udh-empty__ico{font-size:2.5rem;}
     .udh-empty__title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text);margin:0;}
     .udh-empty__sub{font-size:.84rem;color:var(--muted);margin:0;font-weight:300;}
     .udh-btn{padding:.55rem 1.5rem;border-radius:10px;background:var(--gold);color:#1a1200;border:none;font-weight:700;font-size:.85rem;cursor:pointer;}
-
     @media(max-width:640px){
       .udh-hero,.udh-chips-wrap{padding-inline:1.1rem;}
-      .udh-spotlight-wrap{padding:0 1.1rem 2rem;}
-      .udh-spotlight{height:240px;}
+      .udh-spotlight-wrap{padding:0 1.1rem 2rem;}.udh-spotlight{height:240px;}
       .udh-section-hd,.udh-row__head{padding-inline:1.1rem;}
-      .udh-row__track{padding-inline:1.1rem;}
-      .udh-row::after{width:28px;}
-      .udh-card{width:185px;}
-      .udh-org-card{width:145px;}
+      .udh-row__track{padding-inline:1.1rem;}.udh-row::after{width:28px;}
+      .udh-card{width:185px;}.udh-org-card{width:145px;}
     }
   `],
 })
@@ -657,11 +576,8 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     ql.toArray()[idx]?.nativeElement.scrollBy({ left: dir * 650, behavior:'smooth' });
   }
 
-  /** Replace broken org logo with null so the default avatar shows */
   onImgError(e: Event) {
     const img = e.target as HTMLImageElement;
-    // Hide the broken img; Angular's @if will re-evaluate on next change detection
-    // via toggling org.logoUrl — simplest approach: hide the element directly
     img.style.display = 'none';
     if (img.parentElement) {
       img.parentElement.classList.add('udh-org-card__av--default');
@@ -675,22 +591,21 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     }
   }
 
-  // ── Data ─────────────────────────────────────────────────────────────
+  // ── Data ──────────────────────────────────────────────────────────────────
 
   private loadAll() {
     this.loading.set(true);
     this.error.set(false);
-    const profile = this.auth.getUserProfile() as any;
-    this.userName.set(profile?.firstName ?? '');
 
-    // ① Categories from API
+    // ← Fix: getIdentity() returns AuthIdentity, read firstName directly
+    const identity = this.auth.getIdentity();
+    this.userName.set(identity?.firstName ?? '');
+
     this.http
       .get<{ data: Category[]; success: boolean }>(`${this.BASE}/User/favorites`)
       .pipe(catchError(() => of({ data: [] as Category[], success: false })), takeUntil(this.destroy$))
       .subscribe(resp => {
-        let cats = resp.data ?? [];
-
-        // Fallback: localStorage + getAllCategories
+        const cats = resp.data ?? [];
         if (cats.length === 0) {
           const ids = this.auth.getSavedCategoryIds() ?? [];
           if (ids.length > 0) {
@@ -718,18 +633,18 @@ export class UserDashboardHome implements OnInit, OnDestroy {
       return;
     }
 
-    // ② Events per category
     forkJoin(
       cats.map(c =>
         this.http
-          .get<{ data: EsEvent[] }>(`${this.BASE}/Event/Category?categoryId=${c.id}`)
-          .pipe(catchError(() => of({ data: [] as EsEvent[] })))
+          .get<{ data: any[] }>(`${this.BASE}/Event/Category?categoryId=${c.id}`)
+          .pipe(catchError(() => of({ data: [] as any[] })))
       )
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: results => {
         const allEvs: EsEvent[] = [];
         const builtRows = cats.map((cat, i) => {
-          const evs = (results[i]?.data ?? []).sort((a, b) => {
+          // ← Fix: normalize camelCase fields from direct HTTP call
+          const evs = normalizeEvents(results[i]?.data ?? []).sort((a, b) => {
             const d = (isUpcoming(b.start_time) ? 1 : 0) - (isUpcoming(a.start_time) ? 1 : 0);
             return d !== 0 ? d : +new Date(a.start_time ?? 0) - +new Date(b.start_time ?? 0);
           });
@@ -747,14 +662,7 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * ③ Org discovery — organisation: null in event list responses.
-   *    Collect unique organizationIds → fetch org profile + real event list
-   *    in parallel so eventCount reflects the true total, not just the
-   *    number of events that happened to appear in the category results.
-   */
   private discoverOrgs(events: EsEvent[]) {
-    // Deduplicate org IDs from what we already have
     const seenIds = new Set<number>();
     events.forEach(ev => { if (ev.organizationId) seenIds.add(ev.organizationId); });
     if (seenIds.size === 0) { this.discoveredOrgs.set([]); return; }
@@ -762,7 +670,6 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     this.orgsLoading.set(true);
     const ids = Array.from(seenIds).slice(0, 10);
 
-    // For each org: fetch profile AND their full event list in parallel
     forkJoin(
       ids.map(id =>
         forkJoin({
@@ -770,30 +677,24 @@ export class UserDashboardHome implements OnInit, OnDestroy {
             .get<{ data: any }>(`${this.BASE}/Organization/${id}`)
             .pipe(catchError(() => of({ data: null }))),
           orgEvents: this.http
-            .get<{ data: EsEvent[] }>(`${this.BASE}/Event/organization?organizationId=${id}`)
-            .pipe(catchError(() => of({ data: [] as EsEvent[] }))),
+            .get<{ data: any[] }>(`${this.BASE}/Event/organization?organizationId=${id}`)
+            .pipe(catchError(() => of({ data: [] as any[] }))),
         })
       )
     ).pipe(takeUntil(this.destroy$)).subscribe(results => {
       const orgs: DiscoveredOrg[] = [];
-
       results.forEach(({ profile, orgEvents }) => {
         if (!profile?.data) return;
-        const d          = profile.data;
-        // Use the real count from the org's own event list
-        const realCount  = (orgEvents?.data ?? []).length;
-
+        const d = profile.data;
         orgs.push({
           id:         d.id,
-          name:       d.name  ?? 'Organizer',
-          logoUrl:    d.logoUrl ?? null,
-          bio:        d.bio    ?? null,
-          city:       d.city   ?? null,
-          eventCount: realCount,
+          name:       d.name     ?? 'Organizer',
+          logoUrl:    d.logoUrl  ?? null,
+          bio:        d.bio      ?? null,
+          city:       d.city     ?? null,
+          eventCount: (orgEvents?.data ?? []).length,
         });
       });
-
-      // Unfollowed first, then sort by most events
       this.discoveredOrgs.set(
         orgs.sort((a, b) => {
           const diff = (this.followSvc.isFollowing(a.id) ? 1 : 0)
@@ -807,9 +708,12 @@ export class UserDashboardHome implements OnInit, OnDestroy {
 
   private loadTrending(excludeIds: number[]) {
     const ex = new Set(excludeIds);
-    this.http.get<{ data: EsEvent[] }>(`${this.BASE}/Event/upcoming`)
-      .pipe(catchError(() => of({ data: [] as EsEvent[] })), takeUntil(this.destroy$))
-      .subscribe(r => this.trendingEvents.set((r.data ?? []).filter(e => !ex.has(e.id)).slice(0, 20)));
+    this.http.get<{ data: any[] }>(`${this.BASE}/Event/upcoming`)
+      .pipe(catchError(() => of({ data: [] as any[] })), takeUntil(this.destroy$))
+      // ← Fix: normalize camelCase fields
+      .subscribe(r => this.trendingEvents.set(
+        normalizeEvents(r.data ?? []).filter(e => !ex.has(e.id)).slice(0, 20)
+      ));
   }
 
   private loadFollowing() {
@@ -817,15 +721,16 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     if (ids.length === 0) { this.followingEvents.set([]); return; }
     forkJoin(
       ids.map(id =>
-        this.http.get<{ data: EsEvent[] }>(`${this.BASE}/Event/organization?organizationId=${id}`)
-          .pipe(catchError(() => of({ data: [] as EsEvent[] })))
+        this.http.get<{ data: any[] }>(`${this.BASE}/Event/organization?organizationId=${id}`)
+          .pipe(catchError(() => of({ data: [] as any[] })))
       )
     ).pipe(takeUntil(this.destroy$)).subscribe(res => {
       const seen = new Set<number>();
-      const all  = (res as {data:EsEvent[]}[])
-        .flatMap(r => r.data ?? [])
+      // ← Fix: normalize camelCase fields
+      const all = (res as { data: any[] }[])
+        .flatMap(r => normalizeEvents(r.data ?? []))
         .filter(e => !seen.has(e.id) && seen.add(e.id));
-      this.followingEvents.set(all.sort((a, b) => +new Date(a.start_time??0) - +new Date(b.start_time??0)));
+      this.followingEvents.set(all.sort((a, b) => +new Date(a.start_time ?? 0) - +new Date(b.start_time ?? 0)));
     });
   }
 
@@ -833,7 +738,7 @@ export class UserDashboardHome implements OnInit, OnDestroy {
     this.removingCatId.set(catId);
     if (this.activeFilter() === catId) this.activeFilter.set(null);
     const cur = this.auth.getSavedCategoryIds() ?? [];
-    this.auth.saveCategoryIds(cur.filter(id => id !== catId));
+    this.auth.saveCategoryIds(cur.filter((id: number) => id !== catId));
     this.http.delete(`${this.BASE}/User/remove-favorite/${catId}`)
       .pipe(catchError(() => of(null)), takeUntil(this.destroy$))
       .subscribe(() => {
