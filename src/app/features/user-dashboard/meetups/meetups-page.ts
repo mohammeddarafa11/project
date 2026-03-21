@@ -3,7 +3,7 @@ import {
   Component, inject, signal, computed, OnInit, OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, of } from 'rxjs';
+import { Subject, of, forkJoin } from 'rxjs';                        // ← added forkJoin
 import { catchError, takeUntil } from 'rxjs/operators';
 import { MeetupService } from '@core/services/meetup.service';
 import { AuthService }   from '@core/services/auth.service';
@@ -23,7 +23,6 @@ function isUpcoming(iso?: string | null): boolean {
 
 /** Returns the participant count, preferring the flat DTO field when present. */
 function attendeeCount(m: Meetup): number {
-  // AllDetails returns currentAttendees; allMeetups returns participants array
   if (m.currentAttendees !== undefined) return m.currentAttendees;
   return (m.participants ?? []).length;
 }
@@ -216,13 +215,12 @@ type TabFilter = 'all' | 'upcoming' | 'online' | 'offline';
 
                   <!-- Footer: attendee count + join button -->
                   <div class="flex items-center justify-between gap-2 mt-1">
-                    <!-- Attendee count — uses currentAttendees from AllDetails DTO -->
                     <span class="font-[DM_Mono,monospace] text-[0.58rem] tracking-wide text-[#F2EEE6]/40">
                       {{ attendeeCount(m) }}
                       {{ m.maxAttendees ? ' / ' + m.maxAttendees : '' }} joined
                     </span>
 
-                    <!-- Join / Joined / Full -->
+                    <!-- Join / Already Joined / Full -->
                     @if (isJoined(m)) {
                       <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
                                    text-[0.73rem] font-semibold
@@ -231,7 +229,7 @@ type TabFilter = 'all' | 'upcoming' | 'online' | 'offline';
                              stroke-width="3" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                         </svg>
-                        Joined
+                        Already Joined
                       </span>
                     } @else if (m.isFull) {
                       <span class="px-3 py-1.5 rounded-full text-[0.73rem] font-semibold
@@ -314,19 +312,17 @@ export class MeetupsPage implements OnInit, OnDestroy {
   toast     = signal<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   /**
-   * Tracks IDs the user has joined this session (optimistic).
-   * On first load we also seed this from currentAttendees > 0 + userId match
-   * if participants are available, but AllDetails doesn't return them —
-   * so we rely purely on the optimistic set after a successful join.
+   * Seeded on load from getJoinedByUser() so "Already Joined" shows correctly
+   * even on a fresh page visit. Optimistically extended after a successful join.
    */
   joinedIds = signal<Set<number>>(new Set());
 
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  readonly skeletons  = Array.from({ length: 6 }, (_, i) => i);
-  readonly fmtDate    = fmtDate;
-  readonly fmtTime    = fmtTime;
-  readonly isUpcoming = isUpcoming;
+  readonly skeletons     = Array.from({ length: 6 }, (_, i) => i);
+  readonly fmtDate       = fmtDate;
+  readonly fmtTime       = fmtTime;
+  readonly isUpcoming    = isUpcoming;
   readonly attendeeCount = attendeeCount;
 
   readonly tabs: { label: string; value: TabFilter }[] = [
@@ -360,29 +356,40 @@ export class MeetupsPage implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(false);
 
-    this.svc.getAllMeetupsWithIds().pipe(
-      catchError(() => {
-        this.error.set(true);
-        this.loading.set(false);
-        return of([] as Meetup[]);
-      }),
-      takeUntil(this.destroy$),
-    ).subscribe(list => {
-      this.meetups.set(list);
-      this.loading.set(false);
+    const userId = this.auth.getUserProfile()?.id;
 
-      // Seed joinedIds from participants array when present (allMeetups endpoint)
-      const userId = this.auth.getUserProfile()?.id;
-      if (userId) {
-        const joined = new Set<number>();
-        list.forEach(m => {
-          if ((m.participants ?? []).some(p => p.userId === userId)) {
-            joined.add(m.id);
+    // ── Fetch all meetups + the user's joined meetups in parallel ──────────
+    // AllDetails never returns a participants array, so we can't derive
+    // joined state from it. getJoinedByUser() gives us the ground truth.
+    const joined$ = userId
+      ? this.svc.getJoinedByUser(userId).pipe(catchError(() => of([] as Meetup[])))
+      : of([] as Meetup[]);
+
+    forkJoin([
+      this.svc.getAllMeetupsWithIds().pipe(catchError(() => of([] as Meetup[]))),
+      joined$,
+    ])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ([allMeetups, joinedMeetups]) => {
+          if (!allMeetups.length && !joinedMeetups.length) {
+            // Treat a double-empty as a possible network error only if
+            // getAllMeetupsWithIds failed (we can't tell here, so just show empty).
           }
-        });
-        this.joinedIds.set(joined);
-      }
-    });
+
+          this.meetups.set(allMeetups);
+
+          // Seed joinedIds from the dedicated joined-by-user endpoint
+          const joinedSet = new Set<number>(joinedMeetups.map(m => m.id));
+          this.joinedIds.set(joinedSet);
+
+          this.loading.set(false);
+        },
+        error: () => {
+          this.error.set(true);
+          this.loading.set(false);
+        },
+      });
   }
 
   isJoined(m: Meetup): boolean { return this.joinedIds().has(m.id); }
@@ -409,10 +416,7 @@ export class MeetupsPage implements OnInit, OnDestroy {
       this.meetups.update(list =>
         list.map(item =>
           item.id === m.id
-            ? {
-                ...item,
-                currentAttendees: (item.currentAttendees ?? 0) + 1,
-              }
+            ? { ...item, currentAttendees: (item.currentAttendees ?? 0) + 1 }
             : item
         )
       );

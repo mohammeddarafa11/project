@@ -1,22 +1,22 @@
 // src/app/features/user-dashboard/my-created-meetups/my-created-meetups.ts
+//
+// Shows meetups the logged-in user has created — with Edit & Delete actions.
+// GET    /api/Meetup/createdmeetupsbyuser/{userId}
+// PUT    /api/Meetup/{id}
+// DELETE /api/Meetup/{id}
+//
 import {
   Component, inject, signal, computed, OnInit, OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule }  from '@angular/forms';
-import { Router }       from '@angular/router';
-import { Subject, of }  from 'rxjs';
+import { FormsModule   } from '@angular/forms';
+import { Router }        from '@angular/router';
+import { Subject, of }   from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
+import { MeetupService } from '@core/services/meetup.service';
+import { AuthService }   from '@core/services/auth.service';
+import { Meetup, MeetupLocationType, UpdateMeetupDto } from '@core/models/meetup.model';
 
-import { MeetupService }             from '@core/services/meetup.service';
-import { AuthService }               from '@core/services/auth.service';
-import { CategoryService, Category } from '@core/services/category';
-import {
-  Meetup, MeetupLocationType,
-  CreateMeetupDto, UpdateMeetupDto,
-} from '@core/models/meetup.model';
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-EG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -28,26 +28,35 @@ function fmtTime(iso?: string | null): string {
 function isUpcoming(iso?: string | null): boolean {
   return !!iso && new Date(iso) > new Date();
 }
-function toInputDt(iso?: string | null): string {
+function attendeeCount(m: Meetup): number {
+  if (m.currentAttendees !== undefined) return m.currentAttendees;
+  return (m.participants ?? []).length;
+}
+/** Converts an ISO string to the value a datetime-local <input> expects. */
+function toDatetimeLocal(iso: string): string {
   if (!iso) return '';
-  const d = new Date(iso), pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// ── form model ────────────────────────────────────────────────────────────────
-interface MeetupForm {
-  title: string; start_Time: string; end_Time: string; maxAttendees: string;
-  description: string; city: string; region: string; street: string;
-  nameOfPlace: string; online_url: string; meetup_img_url: string;
-  locationType: MeetupLocationType; categoryId: number | null;
+type TabFilter = 'all' | 'upcoming' | 'past';
+
+interface EditForm {
+  title:                string;
+  description:          string;
+  start_Time:           string;
+  end_Time:             string;
+  maxAttendees:         string;
+  city:                 string;
+  region:               string;
+  street:               string;
+  nameOfPlace:          string;
+  online_url:           string;
+  meetup_img_url:       string;
+  meetup_location_type: MeetupLocationType;
+  categoryId:           number;
 }
-const emptyForm = (): MeetupForm => ({
-  title: '', start_Time: '', end_Time: '', maxAttendees: '',
-  description: '', city: '', region: '', street: '',
-  nameOfPlace: '', online_url: '', meetup_img_url: '',
-  locationType: MeetupLocationType.Offline, categoryId: null,
-});
-type ModalMode = 'create' | 'edit';
 
 @Component({
   selector:   'app-my-created-meetups',
@@ -57,718 +66,805 @@ type ModalMode = 'create' | 'edit';
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 
-    <div class="min-h-screen bg-[#060608] text-[#F2EEE6] font-[Plus_Jakarta_Sans,sans-serif]">
+    <div class="mc-root">
 
       <!-- ── HERO ── -->
-      <header class="relative overflow-hidden px-4 pt-8 pb-6 sm:px-6 md:px-10 md:pt-12 md:pb-8
-                     flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div class="pointer-events-none absolute -top-36 -right-20 w-80 h-80 rounded-full"
-             style="background:radial-gradient(circle,rgba(240,180,41,.06) 0%,transparent 65%)"></div>
-
-        <div class="relative z-10 flex-1">
-          <div class="flex gap-2 mb-3">
-            <span class="inline-flex items-center px-3 py-0.5 rounded-full font-[DM_Mono,monospace]
-                         text-[0.58rem] tracking-widest uppercase
-                         bg-[#F0B429]/10 border border-[#F0B429]/22 text-[#F0B429]">Hosting</span>
+      <header class="mc-hero">
+        <div class="mc-orb" aria-hidden="true"></div>
+        <div class="mc-hero__body">
+          <div class="mc-eyebrow">
+            <span class="mc-tag">My Community</span>
             @if (!loading() && meetups().length > 0) {
-              <span class="inline-flex items-center px-3 py-0.5 rounded-full font-[DM_Mono,monospace]
-                           text-[0.58rem] tracking-widest uppercase
-                           bg-white/5 border border-white/7 text-[#F2EEE6]/40">
-                {{ meetups().length }} meetup{{ meetups().length !== 1 ? 's' : '' }}
-              </span>
+              <span class="mc-tag mc-tag--dim">{{ meetups().length }} created</span>
             }
           </div>
-          <h1 class="font-[Bebas_Neue,sans-serif] text-5xl sm:text-6xl md:text-7xl leading-none tracking-wide mb-2">
-            My <em class="text-[#F0B429] not-italic">Created</em> Meetups
-          </h1>
-          <p class="text-sm text-[#F2EEE6]/40 font-light leading-relaxed">
-            Meetups you manage — create, edit, or remove them here.
-          </p>
+          <h1 class="mc-title">My <em class="mc-accent">Created</em> Meetups</h1>
+          <p class="mc-sub">Meetups you've organised and published.</p>
         </div>
-
-        <button (click)="openCreate()"
-                class="relative z-10 self-start inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
-                       bg-[#F0B429] text-[#1a0f00] font-bold text-sm cursor-pointer border-none
-                       hover:opacity-85 hover:-translate-y-px transition-all duration-200 shrink-0">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-          </svg>
-          New Meetup
-        </button>
       </header>
 
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 md:px-10 pb-16">
+      <!-- ── FILTER TABS ── -->
+      @if (!loading() && meetups().length > 0) {
+        <div class="mc-tabs-wrap">
+          @for (tab of tabs; track tab.value) {
+            <button class="mc-tab" [class.mc-tab--on]="activeTab() === tab.value"
+                    (click)="activeTab.set(tab.value)">{{ tab.label }}</button>
+          }
+        </div>
+      }
 
-        <!-- ── LOADING ── -->
-        @if (loading()) {
-          <div class="flex flex-col gap-3">
-            @for (n of skeletons; track n) {
-              <div class="h-28 rounded-2xl skeleton-shimmer" [style.animation-delay]="n * 65 + 'ms'"></div>
-            }
+      <!-- ── LOADING ── -->
+      @if (loading()) {
+        <div class="mc-list">
+          @for (n of skeletons; track n) {
+            <div class="mc-skel" [style.animation-delay]="n * 65 + 'ms'"></div>
+          }
+        </div>
+      }
+
+      <!-- ── ERROR ── -->
+      @else if (error()) {
+        <div class="mc-empty">
+          <span class="mc-empty__ico">⚠</span>
+          <p class="mc-empty__title">Couldn't load meetups</p>
+          <button class="mc-btn" (click)="load()">Retry</button>
+        </div>
+      }
+
+      <!-- ── TRULY EMPTY ── -->
+      @else if (meetups().length === 0) {
+        <div class="mc-empty">
+          <div class="mc-empty__icon-wrap">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4"
+                 viewBox="0 0 24 24" style="color:var(--muted)">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
           </div>
-        }
+          <p class="mc-empty__title">No meetups created yet</p>
+          <p class="mc-empty__sub">Start organising your own community gathering.</p>
+          <button class="mc-btn"
+                  (click)="router.navigate(['/user-dashboard/meetups/create'])">
+            Create a Meetup
+          </button>
+        </div>
+      }
 
-        <!-- ── ERROR ── -->
-        @else if (error()) {
-          <div class="flex flex-col items-center gap-3 py-24 text-center">
-            <span class="text-4xl">⚠</span>
-            <p class="font-[Bebas_Neue,sans-serif] text-2xl tracking-wide">Couldn't load meetups</p>
-            <button (click)="load()"
-                    class="mt-2 px-6 py-2.5 rounded-xl bg-[#F0B429] text-[#1a0f00] font-bold text-sm cursor-pointer">
-              Retry
-            </button>
-          </div>
-        }
+      <!-- ── FILTERED EMPTY ── -->
+      @else if (filtered().length === 0) {
+        <div class="mc-empty mc-empty--sm">
+          <p class="mc-empty__title">No {{ activeTab() }} meetups</p>
+        </div>
+      }
 
-        <!-- ── EMPTY ── -->
-        @else if (meetups().length === 0) {
-          <div class="flex flex-col items-center gap-3 py-24 text-center">
-            <div class="w-14 h-14 rounded-2xl bg-[#111116] border border-white/12
-                        flex items-center justify-center">
-              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4"
-                   viewBox="0 0 24 24" class="text-[#F2EEE6]/40">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-              </svg>
-            </div>
-            <p class="font-[Bebas_Neue,sans-serif] text-2xl tracking-wide">No meetups yet</p>
-            <p class="text-sm text-[#F2EEE6]/40 font-light">Create your first community meetup.</p>
-            <button (click)="openCreate()"
-                    class="mt-2 px-6 py-2.5 rounded-xl bg-[#F0B429] text-[#1a0f00] font-bold text-sm cursor-pointer">
-              Create Meetup
-            </button>
-          </div>
-        }
+      <!-- ── LIST ── -->
+      @else {
+        <div class="mc-list">
+          @for (m of filtered(); track m.id; let i = $index) {
+            <div class="mc-card" [class.mc-card--past]="!isUpcoming(m.start_Time)"
+                 [style.animation-delay]="i * 50 + 'ms'">
 
-        <!-- ── LIST ── -->
-        @else {
-          <div class="flex flex-col gap-3">
-            @for (m of sorted(); track m.id; let i = $index) {
-              <div class="bg-[#09090c] border border-white/7 rounded-2xl overflow-hidden
-                          transition-all duration-200 hover:border-white/12 hover:shadow-2xl
-                          slide-up"
-                   [class.opacity-60]="!isUpcoming(m.start_Time)"
-                   [style.animation-delay]="i * 45 + 'ms'">
+              <!-- Image strip -->
+              @if (m.meetup_img_url) {
+                <div class="mc-card__img-wrap">
+                  <img [src]="m.meetup_img_url" [alt]="m.title ?? ''"
+                       class="mc-card__img" loading="lazy"/>
+                  <div class="mc-card__img-scrim"></div>
+                </div>
+              }
 
-                @if (m.meetup_img_url) {
-                  <div class="relative h-20 sm:h-24 overflow-hidden">
-                    <img [src]="m.meetup_img_url" [alt]="m.title ?? ''" loading="lazy"
-                         class="w-full h-full object-cover"/>
-                    <div class="absolute inset-0"
-                         style="background:linear-gradient(to top,rgba(9,9,12,.85) 0%,transparent 60%)"></div>
-                  </div>
-                }
+              <div class="mc-card__body">
+                <div class="mc-card__left">
 
-                <div class="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
-
-                  <!-- Left: info -->
-                  <div class="flex-1 min-w-0 flex flex-col gap-2">
-                    <div class="flex flex-wrap gap-1.5">
-                      @if (m.category?.name) {
-                        <span class="px-2 py-0.5 rounded-md font-[DM_Mono,monospace] text-[0.56rem]
-                                     tracking-widest uppercase text-[#F0B429] bg-[#F0B429]/8
-                                     border border-[#F0B429]/22">{{ m.category!.name }}</span>
-                      }
-                      <span class="px-2 py-0.5 rounded-md font-[DM_Mono,monospace] text-[0.56rem]
-                                   tracking-widest uppercase border"
-                            [class]="m.meetup_location_type === 1
-                              ? 'text-sky-400 bg-sky-500/8 border-sky-500/20'
-                              : 'text-[#F2EEE6]/40 bg-white/5 border-white/7'">
-                        {{ m.meetup_location_type === 1 ? 'Online' : 'In-Person' }}
-                      </span>
-                      @if (isUpcoming(m.start_Time)) {
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md
-                                     font-[DM_Mono,monospace] text-[0.56rem] tracking-widest uppercase
-                                     text-green-400 bg-green-500/8 border border-green-500/20">
-                          <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block"></span>
-                          Upcoming
-                        </span>
-                      } @else {
-                        <span class="px-2 py-0.5 rounded-md font-[DM_Mono,monospace] text-[0.56rem]
-                                     tracking-widest uppercase text-[#F2EEE6]/30
-                                     bg-white/5 border border-white/7 opacity-70">Past</span>
-                      }
-                    </div>
-
-                    <h3 class="font-[Bebas_Neue,sans-serif] text-lg leading-tight tracking-wide
-                               text-[#F2EEE6]">{{ m.title }}</h3>
-
-                    @if (m.description) {
-                      <p class="text-[0.73rem] text-[#F2EEE6]/40 leading-relaxed line-clamp-2">
-                        {{ m.description }}
-                      </p>
+                  <!-- Badges -->
+                  <div class="mc-badges">
+                    @if (m.category?.name) {
+                      <span class="mc-badge mc-badge--cat">{{ m.category!.name }}</span>
                     }
-
-                    <div class="flex flex-col gap-1">
-                      @if (m.start_Time) {
-                        <div class="flex items-center gap-1.5 text-[0.7rem] text-[#F2EEE6]/40">
-                          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="shrink-0 opacity-60">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                          </svg>
-                          {{ fmtDate(m.start_Time) }} · {{ fmtTime(m.start_Time) }}
-                          @if (m.end_Time) { → {{ fmtTime(m.end_Time) }} }
-                        </div>
-                      }
-                      @if (m.nameOfPlace || m.city) {
-                        <div class="flex items-center gap-1.5 text-[0.7rem] text-[#F2EEE6]/40">
-                          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="shrink-0 opacity-60">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          </svg>
-                          {{ m.nameOfPlace || m.city }}
-                        </div>
-                      }
-                      @if (m.online_url && m.meetup_location_type === 1) {
-                        <div class="flex items-center gap-1.5 text-[0.7rem] text-[#F2EEE6]/40">
-                          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="shrink-0 opacity-60">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                          </svg>
-                          <a [href]="m.online_url" target="_blank" rel="noopener"
-                             class="text-sky-400 no-underline hover:underline">Join link</a>
-                        </div>
-                      }
-                    </div>
+                    <span class="mc-badge" [class.mc-badge--online]="m.meetup_location_type === 1">
+                      {{ m.meetup_location_type === 1 ? 'Online' : 'In-Person' }}
+                    </span>
+                    @if (isUpcoming(m.start_Time)) {
+                      <span class="mc-badge mc-badge--upcoming">
+                        <span class="mc-dot"></span> Upcoming
+                      </span>
+                    } @else {
+                      <span class="mc-badge mc-badge--past-badge">Past</span>
+                    }
+                    <span class="mc-badge mc-badge--owner">
+                      <svg width="9" height="9" fill="none" stroke="currentColor"
+                           stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      Organiser
+                    </span>
                   </div>
 
-                  <!-- Right: count + actions -->
-                  <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-between
-                              gap-3 shrink-0 sm:min-w-[90px]">
-                    <div class="flex items-baseline gap-0.5">
-                      <span class="font-[Bebas_Neue,sans-serif] text-2xl leading-none tracking-wide text-[#F0B429]">
-                        {{ (m.participants ?? []).length }}
-                      </span>
-                      @if (m.maxAttendees) {
-                        <span class="text-[0.68rem] text-[#F2EEE6]/40"> / {{ m.maxAttendees }}</span>
-                      }
-                      <span class="font-[DM_Mono,monospace] text-[0.54rem] tracking-widest uppercase
-                                   text-[#F2EEE6]/40 ml-1">attendees</span>
-                    </div>
+                  <!-- Title -->
+                  <h3 class="mc-card__title">{{ m.title }}</h3>
 
-                    <div class="flex sm:flex-col gap-2 w-full sm:w-auto">
-                      <button (click)="openEdit(m)"
-                              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5
-                                     rounded-lg text-[0.7rem] font-semibold cursor-pointer
-                                     border border-[#F0B429]/30 bg-[#F0B429]/6 text-[#F0B429]
-                                     hover:bg-[#F0B429]/14 transition-colors duration-200">
+                  <!-- Description -->
+                  @if (m.description) {
+                    <p class="mc-card__desc">{{ m.description }}</p>
+                  }
+
+                  <!-- Meta -->
+                  <div class="mc-card__meta-list">
+                    @if (m.start_Time) {
+                      <div class="mc-card__meta">
                         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        Edit
-                      </button>
-                      <button (click)="confirmDelete(m)"
-                              [disabled]="deletingId() === m.id"
-                              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5
-                                     rounded-lg text-[0.7rem] font-semibold cursor-pointer
-                                     border border-[#FF4433]/25 bg-[#FF4433]/5 text-[#FF4433]
-                                     hover:bg-[#FF4433]/14 transition-colors duration-200
-                                     disabled:opacity-40 disabled:cursor-not-allowed">
-                        @if (deletingId() === m.id) {
-                          <span class="w-3 h-3 rounded-full border-2 border-[#FF4433]/30
-                                       border-t-[#FF4433] animate-spin inline-block"></span>
-                        } @else {
-                          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
-                          Delete
-                        }
-                      </button>
-                    </div>
+                        {{ fmtDate(m.start_Time) }} · {{ fmtTime(m.start_Time) }}
+                        @if (m.end_Time) { → {{ fmtTime(m.end_Time) }} }
+                      </div>
+                    }
+                    @if (m.nameOfPlace || m.city) {
+                      <div class="mc-card__meta">
+                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        {{ m.nameOfPlace || m.city }}
+                      </div>
+                    }
+                    @if (m.online_url && m.meetup_location_type === 1) {
+                      <div class="mc-card__meta">
+                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                        </svg>
+                        <a [href]="m.online_url" target="_blank" rel="noopener" class="mc-card__link">Join online</a>
+                      </div>
+                    }
                   </div>
                 </div>
+
+                <!-- Right: stats + actions -->
+                <div class="mc-card__right">
+                  <div class="mc-stat">
+                    <span class="mc-stat__num">{{ attendeeCount(m) }}</span>
+                    @if (m.maxAttendees) {
+                      <span class="mc-stat__max"> / {{ m.maxAttendees }}</span>
+                    }
+                    <span class="mc-stat__label">attendees</span>
+                  </div>
+
+                  @if (m.maxAttendees) {
+                    <div class="mc-bar-wrap">
+                      <div class="mc-bar-fill"
+                           [style.width.%]="capacityPct(m)"
+                           [class.mc-bar-fill--full]="m.isFull"></div>
+                    </div>
+                  }
+
+                  @if (m.isFull) {
+                    <span class="mc-status-pill mc-status-pill--full">Full</span>
+                  } @else {
+                    <span class="mc-status-pill mc-status-pill--open">Open</span>
+                  }
+
+                  <!-- ── Action buttons ── -->
+                  <div class="mc-actions">
+                    <button class="mc-action-btn mc-action-btn--edit"
+                            [disabled]="deletingId() === m.id"
+                            (click)="openEdit(m)"
+                            title="Edit meetup">
+                      <svg width="13" height="13" fill="none" stroke="currentColor"
+                           stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5
+                                 m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button class="mc-action-btn mc-action-btn--delete"
+                            [disabled]="deletingId() === m.id"
+                            (click)="confirmDelete(m)"
+                            title="Delete meetup">
+                      @if (deletingId() === m.id) {
+                        <span class="mc-spinner"></span>
+                      } @else {
+                        <svg width="13" height="13" fill="none" stroke="currentColor"
+                             stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6
+                                   m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete
+                      }
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          }
+        </div>
+      }
+
+      <div style="height:3rem"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         DELETE CONFIRM MODAL
+    ════════════════════════════════════════════════ -->
+    @if (deleteTarget()) {
+      <div class="mc-overlay" (click)="cancelDelete()">
+        <div class="mc-modal" (click)="$event.stopPropagation()">
+          <h2 class="mc-modal__title">Delete Meetup?</h2>
+          <p class="mc-modal__body">
+            "<strong>{{ deleteTarget()!.title }}</strong>" will be permanently removed.
+            This action cannot be undone.
+          </p>
+          <div class="mc-modal__footer">
+            <button class="mc-modal-btn mc-modal-btn--cancel" (click)="cancelDelete()">
+              Cancel
+            </button>
+            <button class="mc-modal-btn mc-modal-btn--confirm"
+                    [disabled]="deletingId() !== null"
+                    (click)="executeDelete()">
+              @if (deletingId() !== null) {
+                <span class="mc-spinner mc-spinner--light"></span>
+              } @else {
+                Delete
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ════════════════════════════════════════════════
+         EDIT MODAL
+    ════════════════════════════════════════════════ -->
+    @if (editTarget()) {
+      <div class="mc-overlay" (click)="cancelEdit()">
+        <div class="mc-modal mc-modal--wide" (click)="$event.stopPropagation()">
+          <div class="mc-modal__header">
+            <h2 class="mc-modal__title">Edit Meetup</h2>
+            <button class="mc-modal__close" (click)="cancelEdit()">
+              <svg width="16" height="16" fill="none" stroke="currentColor"
+                   stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="mc-form">
+            <!-- Title -->
+            <label class="mc-label">Title *
+              <input class="mc-input" [(ngModel)]="editForm.title" placeholder="Meetup title"/>
+            </label>
+
+            <!-- Description -->
+            <label class="mc-label">Description
+              <textarea class="mc-input mc-textarea"
+                        [(ngModel)]="editForm.description"
+                        placeholder="What's this meetup about?" rows="3"></textarea>
+            </label>
+
+            <!-- Dates row -->
+            <div class="mc-row">
+              <label class="mc-label">Start *
+                <input class="mc-input" type="datetime-local"
+                       [(ngModel)]="editForm.start_Time"/>
+              </label>
+              <label class="mc-label">End *
+                <input class="mc-input" type="datetime-local"
+                       [(ngModel)]="editForm.end_Time"/>
+              </label>
+            </div>
+
+            <!-- Location type -->
+            <label class="mc-label">Location type
+              <select class="mc-input mc-select"
+                      [(ngModel)]="editForm.meetup_location_type">
+                <option [ngValue]="0">In-Person</option>
+                <option [ngValue]="1">Online</option>
+              </select>
+            </label>
+
+            @if (editForm.meetup_location_type === 1) {
+              <label class="mc-label">Online URL
+                <input class="mc-input" [(ngModel)]="editForm.online_url"
+                       placeholder="https://meet.google.com/..."/>
+              </label>
+            } @else {
+              <div class="mc-row">
+                <label class="mc-label">City
+                  <input class="mc-input" [(ngModel)]="editForm.city" placeholder="Cairo"/>
+                </label>
+                <label class="mc-label">Region
+                  <input class="mc-input" [(ngModel)]="editForm.region" placeholder="Cairo Governorate"/>
+                </label>
+              </div>
+              <div class="mc-row">
+                <label class="mc-label">Venue name
+                  <input class="mc-input" [(ngModel)]="editForm.nameOfPlace" placeholder="Tech Hub Cairo"/>
+                </label>
+                <label class="mc-label">Street
+                  <input class="mc-input" [(ngModel)]="editForm.street" placeholder="123 Tahrir Square"/>
+                </label>
               </div>
             }
+
+            <!-- Max attendees + image -->
+            <div class="mc-row">
+              <label class="mc-label">Max attendees
+                <input class="mc-input" type="number" min="1"
+                       [(ngModel)]="editForm.maxAttendees"
+                       placeholder="Unlimited"/>
+              </label>
+              <label class="mc-label">Image URL
+                <input class="mc-input" [(ngModel)]="editForm.meetup_img_url"
+                       placeholder="https://…"/>
+              </label>
+            </div>
           </div>
-        }
+
+          @if (editError()) {
+            <p class="mc-form-error">{{ editError() }}</p>
+          }
+
+          <div class="mc-modal__footer">
+            <button class="mc-modal-btn mc-modal-btn--cancel" (click)="cancelEdit()">
+              Cancel
+            </button>
+            <button class="mc-modal-btn mc-modal-btn--save"
+                    [disabled]="saving()"
+                    (click)="saveEdit()">
+              @if (saving()) {
+                <span class="mc-spinner mc-spinner--dark"></span>
+              } @else {
+                Save changes
+              }
+            </button>
+          </div>
+        </div>
       </div>
+    }
 
-      <!-- ── TOAST ── -->
-      @if (toast()) {
-        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl
-                    text-[0.82rem] font-semibold whitespace-nowrap z-[300] toast-in"
-             [class]="toast()!.type === 'error'
-               ? 'bg-[#FF4433]/12 border border-[#FF4433]/30 text-[#FF4433]'
-               : 'bg-[#F0B429]/12 border border-[#F0B429]/30 text-[#F0B429]'"
-             role="status" aria-live="polite">
-          {{ toast()!.msg }}
-        </div>
-      }
-
-      <!-- ── DELETE CONFIRM ── -->
-      @if (deleteTarget()) {
-        <div class="fixed inset-0 bg-[#060608]/80 backdrop-blur-md flex items-center justify-center
-                    z-[200] p-4 fade-in"
-             (click)="deleteTarget.set(null)">
-          <div class="bg-[#111116] border border-white/12 rounded-2xl p-7 max-w-sm w-full pop-in"
-               (click)="$event.stopPropagation()">
-            <p class="font-[Bebas_Neue,sans-serif] text-2xl tracking-wide text-[#F2EEE6] mb-1">
-              Delete meetup?
-            </p>
-            <p class="text-[0.8rem] text-[#F2EEE6]/40 leading-relaxed mb-5">
-              "<strong class="text-[#F2EEE6]/70">{{ deleteTarget()!.title }}</strong>" will be permanently removed.
-            </p>
-            <div class="flex gap-2.5 justify-end">
-              <button (click)="deleteTarget.set(null)"
-                      class="px-4 py-2 rounded-lg text-[0.78rem] bg-transparent cursor-pointer
-                             border border-white/7 text-[#F2EEE6]/40
-                             hover:border-white/12 hover:text-[#F2EEE6] transition-all">
-                Cancel
-              </button>
-              <button (click)="doDelete()" [disabled]="deletingId() !== null"
-                      class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[0.78rem] font-semibold
-                             cursor-pointer bg-[#FF4433]/15 border border-[#FF4433]/35 text-[#FF4433]
-                             hover:bg-[#FF4433]/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                @if (deletingId() !== null) {
-                  <span class="w-3 h-3 rounded-full border-2 border-[#FF4433]/30 border-t-[#FF4433] animate-spin"></span>
-                } @else { Delete }
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- ── CREATE / EDIT MODAL ── -->
-      @if (modalOpen()) {
-        <div class="fixed inset-0 bg-[#060608]/80 backdrop-blur-md flex items-center justify-center
-                    z-[200] p-4 fade-in"
-             (click)="closeModal()"
-             role="dialog"
-             [attr.aria-label]="modalMode() === 'create' ? 'Create Meetup' : 'Edit Meetup'">
-          <div class="bg-[#111116] border border-white/12 rounded-2xl w-full max-w-lg
-                      max-h-[90vh] overflow-y-auto pop-in"
-               (click)="$event.stopPropagation()">
-
-            <!-- Head -->
-            <div class="flex items-center justify-between px-6 pt-6 pb-0">
-              <h2 class="font-[Bebas_Neue,sans-serif] text-2xl tracking-wide text-[#F2EEE6]">
-                {{ modalMode() === 'create' ? 'New Meetup' : 'Edit Meetup' }}
-              </h2>
-              <button (click)="closeModal()" aria-label="Close"
-                      class="w-8 h-8 rounded-lg bg-[#16161c] border border-white/7 text-[#F2EEE6]/40
-                             flex items-center justify-center cursor-pointer
-                             hover:border-white/12 hover:text-[#F2EEE6] transition-all">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Body -->
-            <div class="px-6 py-5 flex flex-col gap-4">
-
-              <!-- Title -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">
-                  Title <span class="text-[#FF4433]">*</span>
-                </label>
-                <input type="text" [(ngModel)]="form.title" placeholder="e.g. Cairo JS Monthly"
-                       class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                              font-[Plus_Jakarta_Sans,sans-serif] text-[0.82rem] px-3 py-2.5 outline-none
-                              placeholder-[#F2EEE6]/20 focus:border-[#F0B429]/45 transition-colors"/>
-              </div>
-
-              <!-- Description -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Description</label>
-                <textarea [(ngModel)]="form.description" rows="3" placeholder="What's this meetup about?"
-                          class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                 font-[Plus_Jakarta_Sans,sans-serif] text-[0.82rem] px-3 py-2.5 outline-none
-                                 placeholder-[#F2EEE6]/20 focus:border-[#F0B429]/45 transition-colors
-                                 resize-y min-h-[72px]"></textarea>
-              </div>
-
-              <!-- Start / End -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">
-                    Start <span class="text-[#FF4433]">*</span>
-                  </label>
-                  <input type="datetime-local" [(ngModel)]="form.start_Time"
-                         class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                text-[0.82rem] px-3 py-2.5 outline-none
-                                focus:border-[#F0B429]/45 transition-colors [color-scheme:dark]"/>
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">
-                    End <span class="text-[#FF4433]">*</span>
-                  </label>
-                  <input type="datetime-local" [(ngModel)]="form.end_Time"
-                         class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                text-[0.82rem] px-3 py-2.5 outline-none
-                                focus:border-[#F0B429]/45 transition-colors [color-scheme:dark]"/>
-                </div>
-              </div>
-
-              <!-- Location type -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">
-                  Location type <span class="text-[#FF4433]">*</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                  <button (click)="form.locationType = 0"
-                          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[0.78rem]
-                                 border cursor-pointer transition-all duration-200"
-                          [class]="form.locationType === 0
-                            ? 'bg-[#F0B429]/10 border-[#F0B429]/40 text-[#F0B429] font-semibold'
-                            : 'bg-[#16161c] border-white/7 text-[#F2EEE6]/40 hover:border-white/12'">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    In-Person
-                  </button>
-                  <button (click)="form.locationType = 1"
-                          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[0.78rem]
-                                 border cursor-pointer transition-all duration-200"
-                          [class]="form.locationType === 1
-                            ? 'bg-[#F0B429]/10 border-[#F0B429]/40 text-[#F0B429] font-semibold'
-                            : 'bg-[#16161c] border-white/7 text-[#F2EEE6]/40 hover:border-white/12'">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
-                    Online
-                  </button>
-                </div>
-              </div>
-
-              <!-- In-Person fields -->
-              @if (form.locationType === 0) {
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Venue name</label>
-                    <input type="text" [(ngModel)]="form.nameOfPlace" placeholder="e.g. GrEEK Campus"
-                           class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                  text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                  focus:border-[#F0B429]/45 transition-colors"/>
-                  </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">City</label>
-                    <input type="text" [(ngModel)]="form.city" placeholder="Cairo"
-                           class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                  text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                  focus:border-[#F0B429]/45 transition-colors"/>
-                  </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Region</label>
-                    <input type="text" [(ngModel)]="form.region" placeholder="Maadi"
-                           class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                  text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                  focus:border-[#F0B429]/45 transition-colors"/>
-                  </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Street</label>
-                    <input type="text" [(ngModel)]="form.street" placeholder="123 Tahrir St"
-                           class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                  text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                  focus:border-[#F0B429]/45 transition-colors"/>
-                  </div>
-                </div>
-              }
-
-              <!-- Online URL -->
-              @if (form.locationType === 1) {
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Meeting URL</label>
-                  <input type="url" [(ngModel)]="form.online_url" placeholder="https://meet.google.com/..."
-                         class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                focus:border-[#F0B429]/45 transition-colors"/>
-                </div>
-              }
-
-              <!-- Category + Max attendees -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">
-                    Category <span class="text-[#FF4433]">*</span>
-                  </label>
-                  @if (categoriesLoading()) {
-                    <div class="h-10 rounded-xl skeleton-shimmer"></div>
-                  } @else if (categoriesError()) {
-                    <div class="flex items-center gap-2 text-[0.73rem] text-[#FF4433]
-                                bg-[#FF4433]/7 border border-[#FF4433]/18 rounded-xl px-3 py-2.5">
-                      <span>Failed to load</span>
-                      <button (click)="loadCategories()"
-                              class="ml-auto text-[0.7rem] font-semibold text-[#FF4433] cursor-pointer
-                                     bg-transparent border border-[#FF4433]/30 rounded-md px-2 py-0.5
-                                     hover:bg-[#FF4433]/12">Retry</button>
-                    </div>
-                  } @else {
-                    <select [(ngModel)]="form.categoryId"
-                            class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                   text-[0.82rem] px-3 py-2.5 outline-none cursor-pointer appearance-none
-                                   focus:border-[#F0B429]/45 transition-colors">
-                      <option [ngValue]="null" disabled>Select category…</option>
-                      @for (cat of categories(); track cat.id) {
-                        <option [ngValue]="cat.id" class="bg-[#111116]">{{ cat.name }}</option>
-                      }
-                    </select>
-                  }
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Max attendees</label>
-                  <input type="number" [(ngModel)]="form.maxAttendees" placeholder="unlimited" min="1"
-                         class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                                text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                                focus:border-[#F0B429]/45 transition-colors"/>
-                </div>
-              </div>
-
-              <!-- Cover image -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[0.72rem] font-semibold text-[#F2EEE6]/40 tracking-wide">Cover image URL</label>
-                <input type="url" [(ngModel)]="form.meetup_img_url" placeholder="https://..."
-                       class="w-full bg-[#16161c] border border-white/7 rounded-xl text-[#F2EEE6]
-                              text-[0.82rem] px-3 py-2.5 outline-none placeholder-[#F2EEE6]/20
-                              focus:border-[#F0B429]/45 transition-colors"/>
-              </div>
-
-              @if (formError()) {
-                <p class="text-[0.76rem] text-[#FF4433] bg-[#FF4433]/8 border border-[#FF4433]/20
-                           rounded-xl px-3 py-2.5 m-0">{{ formError() }}</p>
-              }
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 pb-6 pt-4 flex items-center justify-end gap-2.5
-                        border-t border-white/7">
-              <button (click)="closeModal()"
-                      class="px-4 py-2 rounded-xl text-[0.8rem] bg-transparent cursor-pointer
-                             border border-white/7 text-[#F2EEE6]/40
-                             hover:border-white/12 hover:text-[#F2EEE6] transition-all">
-                Cancel
-              </button>
-              <button (click)="submitForm()" [disabled]="saving()"
-                      class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-[0.82rem] font-bold
-                             bg-[#F0B429] text-[#1a0f00] border-none cursor-pointer
-                             hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                @if (saving()) {
-                  <span class="w-3.5 h-3.5 rounded-full border-2 border-[#1a0f00]/30
-                               border-t-[#1a0f00] animate-spin"></span>
-                  Saving…
-                } @else {
-                  {{ modalMode() === 'create' ? 'Create Meetup' : 'Save Changes' }}
-                }
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
-    </div>
+    <!-- ── TOAST ── -->
+    @if (toast()) {
+      <div class="mc-toast"
+           [class.mc-toast--error]="toast()!.type === 'error'"
+           role="status" aria-live="polite">
+        {{ toast()!.msg }}
+      </div>
+    }
   `,
   styles: [`
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: none; }
+    :host {
+      --gold:  #F0B429; --coral: #FF4433; --green: #22c55e;
+      --bg:    #060608; --bg2:  #09090c;  --bg3: #111116; --bg4: #16161b;
+      --text:  #F2EEE6; --muted: rgba(242,238,230,.42);
+      --bdr:   rgba(242,238,230,.07); --bdrhi: rgba(242,238,230,.12);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      display: block; background: var(--bg); color: var(--text); min-height: 100%;
     }
-    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes popIn   { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(12px); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Hero ── */
+    .mc-hero { position:relative;overflow:hidden;padding:2.5rem 1.75rem 2rem; }
+    .mc-orb {
+      position:absolute;width:360px;height:360px;top:-140px;right:-80px;border-radius:50%;
+      pointer-events:none;z-index:0;
+      background:radial-gradient(circle,rgba(240,180,41,.08) 0%,transparent 65%);
     }
-    @keyframes shimmer {
-      from { background-position: -600px 0; }
-      to   { background-position:  600px 0; }
+    .mc-hero__body { position:relative;z-index:1; }
+    .mc-eyebrow { display:flex;gap:.5rem;margin-bottom:.9rem; }
+    .mc-tag {
+      display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;
+      font-family:'DM Mono',monospace;font-size:.59rem;letter-spacing:.12em;text-transform:uppercase;
+      background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.25);color:var(--gold);
     }
-    .slide-up  { animation: slideUp .4s cubic-bezier(.22,1,.36,1) both; }
-    .fade-in   { animation: fadeIn .2s ease; }
-    .pop-in    { animation: popIn .28s cubic-bezier(.22,1,.36,1); }
-    .toast-in  { animation: toastIn .3s cubic-bezier(.22,1,.36,1); }
-    .skeleton-shimmer {
-      background: linear-gradient(90deg,rgba(242,238,230,.04) 25%,rgba(242,238,230,.07) 50%,rgba(242,238,230,.04) 75%);
-      background-size: 600px 100%;
-      animation: shimmer 1.5s ease-in-out infinite;
+    .mc-tag--dim { background:rgba(242,238,230,.05);border-color:var(--bdr);color:var(--muted); }
+    .mc-title {
+      font-family:'Bebas Neue',sans-serif;font-size:clamp(2.6rem,7vw,4.6rem);
+      letter-spacing:.03em;line-height:.9;color:var(--text);margin:0 0 .65rem;
+    }
+    .mc-accent { color:var(--gold);font-style:normal; }
+    .mc-sub { font-size:.84rem;color:var(--muted);margin:0;font-weight:300;line-height:1.6; }
+
+    /* ── Tabs ── */
+    .mc-tabs-wrap { display:flex;gap:.4rem;padding:0 1.75rem 1.25rem;flex-wrap:wrap; }
+    .mc-tab {
+      padding:.38rem .9rem;border-radius:100px;
+      background:var(--bg3);border:1px solid var(--bdr);
+      color:var(--muted);font-size:.8rem;font-weight:500;cursor:pointer;transition:all .2s;
+    }
+    .mc-tab:hover { border-color:var(--bdrhi);color:var(--text); }
+    .mc-tab--on { background:rgba(240,180,41,.1);border-color:rgba(240,180,41,.3)!important;color:var(--gold)!important;font-weight:700; }
+
+    /* ── List ── */
+    .mc-list { display:flex;flex-direction:column;gap:.85rem;padding:0 1.75rem; }
+
+    /* ── Card ── */
+    .mc-card {
+      background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;overflow:hidden;
+      transition:border-color .2s,box-shadow .22s;
+      animation:slideUp .4s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    .mc-card:hover { border-color:var(--bdrhi);box-shadow:0 8px 28px rgba(0,0,0,.35); }
+    .mc-card--past { opacity:.65; }
+    .mc-card--past:hover { opacity:1; }
+
+    .mc-card__img-wrap { position:relative;height:110px;overflow:hidden; }
+    .mc-card__img { width:100%;height:100%;object-fit:cover; }
+    .mc-card__img-scrim { position:absolute;inset:0;background:linear-gradient(to top,rgba(9,9,12,.8) 0%,transparent 60%); }
+
+    .mc-card__body { display:flex;align-items:flex-start;gap:1rem;padding:1rem 1.1rem; }
+    .mc-card__left { flex:1;min-width:0;display:flex;flex-direction:column;gap:.5rem; }
+
+    /* ── Badges ── */
+    .mc-badges { display:flex;gap:.35rem;flex-wrap:wrap; }
+    .mc-badge {
+      display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;
+      font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;
+      background:rgba(242,238,230,.06);border:1px solid var(--bdr);color:var(--muted);
+    }
+    .mc-badge--cat      { color:var(--green);background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2); }
+    .mc-badge--online   { color:#0ea5e9;background:rgba(14,165,233,.08);border-color:rgba(14,165,233,.2); }
+    .mc-badge--upcoming { color:var(--green);background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2); }
+    .mc-badge--past-badge { color:var(--muted);opacity:.7; }
+    .mc-badge--owner    { color:var(--gold);background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.22); }
+    .mc-dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
+
+    .mc-card__title { font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:.04em;color:var(--text);margin:0;line-height:1.1; }
+    .mc-card__desc {
+      font-size:.76rem;color:var(--muted);line-height:1.55;margin:0;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    }
+    .mc-card__meta-list { display:flex;flex-direction:column;gap:.3rem; }
+    .mc-card__meta { display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:var(--muted); }
+    .mc-card__meta svg { flex-shrink:0;opacity:.6; }
+    .mc-card__link { color:#0ea5e9;text-decoration:none; }
+    .mc-card__link:hover { text-decoration:underline; }
+
+    /* ── Right panel ── */
+    .mc-card__right {
+      display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;
+      gap:.6rem;flex-shrink:0;min-width:96px;
+    }
+    .mc-stat { text-align:right;display:flex;align-items:baseline;gap:2px;flex-wrap:wrap;justify-content:flex-end; }
+    .mc-stat__num   { font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.04em;color:var(--gold);line-height:1; }
+    .mc-stat__max   { font-size:.7rem;color:var(--muted); }
+    .mc-stat__label { width:100%;text-align:right;font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted); }
+
+    .mc-bar-wrap { width:80px;height:4px;border-radius:2px;background:rgba(242,238,230,.08);overflow:hidden; }
+    .mc-bar-fill { height:100%;border-radius:2px;background:var(--gold);transition:width .4s ease; }
+    .mc-bar-fill--full { background:var(--coral); }
+
+    .mc-status-pill { display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase; }
+    .mc-status-pill--open { background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green); }
+    .mc-status-pill--full { background:rgba(255,68,51,.1);border:1px solid rgba(255,68,51,.25);color:var(--coral); }
+
+    /* ── Action buttons ── */
+    .mc-actions { display:flex;flex-direction:column;gap:.35rem;width:100%; }
+    .mc-action-btn {
+      display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+      width:100%;padding:.35rem .6rem;border-radius:8px;
+      font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid;
+      transition:background .18s,opacity .18s;
+    }
+    .mc-action-btn:disabled { opacity:.4;cursor:not-allowed; }
+    .mc-action-btn--edit {
+      background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.25);color:var(--gold);
+    }
+    .mc-action-btn--edit:hover:not(:disabled)   { background:rgba(240,180,41,.16); }
+    .mc-action-btn--delete {
+      background:rgba(255,68,51,.07);border-color:rgba(255,68,51,.22);color:var(--coral);
+    }
+    .mc-action-btn--delete:hover:not(:disabled) { background:rgba(255,68,51,.15); }
+
+    /* ── Skeleton ── */
+    .mc-skel {
+      height:120px;border-radius:16px;
+      background:linear-gradient(90deg,rgba(242,238,230,.04) 25%,rgba(242,238,230,.07) 50%,rgba(242,238,230,.04) 75%);
+      background-size:600px 100%;animation:shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer{from{background-position:-600px 0}to{background-position:600px 0}}
+
+    /* ── Empty ── */
+    .mc-empty { display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:5rem 1rem;text-align:center; }
+    .mc-empty--sm { padding:2rem 1rem; }
+    .mc-empty__icon-wrap { width:56px;height:56px;border-radius:16px;background:var(--bg3);border:1px solid var(--bdrhi);display:flex;align-items:center;justify-content:center; }
+    .mc-empty__ico   { font-size:2.5rem; }
+    .mc-empty__title { font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;color:var(--text);margin:0; }
+    .mc-empty__sub   { font-size:.84rem;color:var(--muted);margin:0;font-weight:300; }
+    .mc-btn { padding:.6rem 1.5rem;border-radius:10px;background:var(--gold);color:#3d2800;border:none;font-weight:700;font-size:.85rem;cursor:pointer; }
+
+    /* ── Overlay ── */
+    .mc-overlay {
+      position:fixed;inset:0;z-index:100;
+      background:rgba(6,6,8,.75);backdrop-filter:blur(6px);
+      display:flex;align-items:center;justify-content:center;padding:1rem;
+      animation:fadeIn .2s ease;
+    }
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    /* ── Modal ── */
+    .mc-modal {
+      background:var(--bg2);border:1px solid var(--bdrhi);border-radius:20px;
+      padding:1.75rem;width:100%;max-width:420px;
+      animation:slideUp .3s cubic-bezier(.22,1,.36,1);
+    }
+    .mc-modal--wide { max-width:640px;max-height:90vh;overflow-y:auto; }
+    .mc-modal__header { display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem; }
+    .mc-modal__title  { font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;margin:0 0 .6rem; }
+    .mc-modal--wide .mc-modal__title { margin:0; }
+    .mc-modal__close  { background:none;border:none;color:var(--muted);cursor:pointer;padding:.25rem;border-radius:6px;transition:color .15s; }
+    .mc-modal__close:hover { color:var(--text); }
+    .mc-modal__body   { font-size:.88rem;color:var(--muted);line-height:1.6;margin-bottom:1.5rem; }
+    .mc-modal__footer { display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.5rem; }
+
+    .mc-modal-btn {
+      padding:.55rem 1.3rem;border-radius:10px;font-weight:700;font-size:.84rem;cursor:pointer;border:1px solid;
+      display:inline-flex;align-items:center;gap:.4rem;transition:opacity .15s;
+    }
+    .mc-modal-btn:disabled { opacity:.5;cursor:not-allowed; }
+    .mc-modal-btn--cancel  { background:transparent;border-color:var(--bdrhi);color:var(--muted); }
+    .mc-modal-btn--cancel:hover  { color:var(--text); }
+    .mc-modal-btn--confirm { background:rgba(255,68,51,.12);border-color:rgba(255,68,51,.3);color:var(--coral); }
+    .mc-modal-btn--confirm:hover:not(:disabled) { background:rgba(255,68,51,.22); }
+    .mc-modal-btn--save    { background:var(--gold);border-color:var(--gold);color:#3d2800; }
+    .mc-modal-btn--save:hover:not(:disabled) { opacity:.88; }
+
+    /* ── Form ── */
+    .mc-form { display:flex;flex-direction:column;gap:.85rem; }
+    .mc-label { display:flex;flex-direction:column;gap:.35rem;font-size:.78rem;font-weight:600;color:var(--muted); }
+    .mc-input {
+      background:var(--bg3);border:1px solid var(--bdr);border-radius:10px;
+      color:var(--text);font-family:inherit;font-size:.84rem;
+      padding:.55rem .75rem;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box;
+    }
+    .mc-input:focus { border-color:rgba(240,180,41,.4); }
+    .mc-textarea { resize:vertical;min-height:72px; }
+    .mc-select  { appearance:none;cursor:pointer; }
+    .mc-row     { display:grid;grid-template-columns:1fr 1fr;gap:.75rem; }
+    .mc-form-error { font-size:.78rem;color:var(--coral);margin:.25rem 0 0; }
+
+    /* ── Spinner ── */
+    .mc-spinner {
+      display:inline-block;width:13px;height:13px;border-radius:50%;
+      border:2px solid rgba(255,68,51,.3);border-top-color:var(--coral);animation:spin .7s linear infinite;
+    }
+    .mc-spinner--light { border-color:rgba(61,40,0,.25);border-top-color:#3d2800; }
+    .mc-spinner--dark  { border-color:rgba(61,40,0,.25);border-top-color:#3d2800; }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Toast ── */
+    .mc-toast {
+      position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);
+      padding:.65rem 1.25rem;border-radius:12px;font-size:.82rem;font-weight:600;
+      white-space:nowrap;z-index:200;
+      background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green);
+      animation:toastIn .3s cubic-bezier(.22,1,.36,1);
+    }
+    .mc-toast--error { background:rgba(255,68,51,.12);border-color:rgba(255,68,51,.3);color:var(--coral); }
+    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    @media(max-width:640px){
+      .mc-hero { padding:1.75rem 1.1rem 1.5rem; }
+      .mc-tabs-wrap,.mc-list { padding-inline:1.1rem; }
+      .mc-row { grid-template-columns:1fr; }
     }
   `],
 })
 export class MyCreatedMeetupsPage implements OnInit, OnDestroy {
-  readonly router         = inject(Router);
-  private readonly svc    = inject(MeetupService);
-  private readonly auth   = inject(AuthService);
-  private readonly catSvc = inject(CategoryService);
-  private readonly d$     = new Subject<void>();
+  readonly router       = inject(Router);
+  private readonly svc  = inject(MeetupService);
+  private readonly auth = inject(AuthService);
+  private readonly d$   = new Subject<void>();
 
-  meetups           = signal<Meetup[]>([]);
-  loading           = signal(true);
-  error             = signal(false);
-  categories        = signal<Category[]>([]);
-  categoriesLoading = signal(false);
-  categoriesError   = signal(false);
-  modalOpen         = signal(false);
-  modalMode         = signal<ModalMode>('create');
-  editTarget        = signal<Meetup | null>(null);
-  form              = emptyForm();
-  saving            = signal(false);
-  formError         = signal<string | null>(null);
-  deleteTarget      = signal<Meetup | null>(null);
-  deletingId        = signal<number | null>(null);
-  toast             = signal<{ msg: string; type: 'success' | 'error' } | null>(null);
+  meetups      = signal<Meetup[]>([]);
+  loading      = signal(true);
+  error        = signal(false);
+  activeTab    = signal<TabFilter>('all');
+  deletingId   = signal<number | null>(null);
+  saving       = signal(false);
+  editError    = signal<string | null>(null);
+  deleteTarget = signal<Meetup | null>(null);
+  editTarget   = signal<Meetup | null>(null);
+  toast        = signal<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  editForm: EditForm = this.blankForm();
 
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  readonly skeletons  = Array.from({ length: 3 }, (_, i) => i);
-  readonly fmtDate    = fmtDate;
-  readonly fmtTime    = fmtTime;
-  readonly isUpcoming = isUpcoming;
+  readonly skeletons     = Array.from({ length: 3 }, (_, i) => i);
+  readonly fmtDate       = fmtDate;
+  readonly fmtTime       = fmtTime;
+  readonly isUpcoming    = isUpcoming;
+  readonly attendeeCount = attendeeCount;
 
-  sorted = computed(() =>
-    [...this.meetups()].sort((a, b) => +new Date(b.start_Time) - +new Date(a.start_Time))
-  );
+  readonly tabs: { label: string; value: TabFilter }[] = [
+    { label: 'All',      value: 'all'      },
+    { label: 'Upcoming', value: 'upcoming' },
+    { label: 'Past',     value: 'past'     },
+  ];
 
-  ngOnInit()    { this.load(); this.loadCategories(); }
+  filtered = computed(() => {
+    const t    = this.activeTab();
+    const list = this.meetups();
+    if (t === 'upcoming') return list.filter(m =>  isUpcoming(m.start_Time));
+    if (t === 'past')     return list.filter(m => !isUpcoming(m.start_Time));
+    return list;
+  });
+
+  capacityPct(m: Meetup): number {
+    if (!m.maxAttendees) return 0;
+    return Math.min(100, Math.round((attendeeCount(m) / m.maxAttendees) * 100));
+  }
+
+  ngOnInit()    { this.load(); }
   ngOnDestroy() {
-    this.d$.next(); this.d$.complete();
+    this.d$.next();
+    this.d$.complete();
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
   load() {
     const userId = this.auth.getUserProfile()?.id;
     if (!userId) { this.loading.set(false); return; }
-    this.loading.set(true); this.error.set(false);
+
+    this.loading.set(true);
+    this.error.set(false);
+
     this.svc.getCreatedByUser(userId).pipe(
       catchError(() => { this.error.set(true); this.loading.set(false); return of([] as Meetup[]); }),
       takeUntil(this.d$),
-    ).subscribe(list => { this.meetups.set(list); this.loading.set(false); });
+    ).subscribe(list => {
+      this.meetups.set([...list].sort((a, b) => +new Date(b.start_Time) - +new Date(a.start_Time)));
+      this.loading.set(false);
+    });
   }
 
-  loadCategories() {
-    if (this.categories().length) return;
-    this.categoriesLoading.set(true); this.categoriesError.set(false);
-    this.catSvc.getAllCategories().pipe(
-      catchError(() => { this.categoriesError.set(true); this.categoriesLoading.set(false); return of([] as Category[]); }),
-      takeUntil(this.d$),
-    ).subscribe(cats => { this.categories.set(cats); this.categoriesLoading.set(false); });
+  // ── Delete flow ───────────────────────────────────────────────────────────
+
+  confirmDelete(m: Meetup): void {
+    this.deleteTarget.set(m);
   }
 
-  openCreate() {
-    this.form = emptyForm(); this.editTarget.set(null);
-    this.modalMode.set('create'); this.formError.set(null);
-    this.modalOpen.set(true); this.loadCategories();
+  cancelDelete(): void {
+    this.deleteTarget.set(null);
   }
 
-  openEdit(m: Meetup) {
-    this.form = {
-      title: m.title ?? '', start_Time: toInputDt(m.start_Time), end_Time: toInputDt(m.end_Time),
-      maxAttendees: m.maxAttendees != null ? String(m.maxAttendees) : '',
-      description: m.description ?? '', city: m.city ?? '', region: m.region ?? '',
-      street: m.street ?? '', nameOfPlace: m.nameOfPlace ?? '', online_url: m.online_url ?? '',
-      meetup_img_url: m.meetup_img_url ?? '', locationType: m.meetup_location_type,
-      categoryId: m.categoryId ?? null,
-    };
-    this.editTarget.set(m); this.modalMode.set('edit');
-    this.formError.set(null); this.modalOpen.set(true); this.loadCategories();
-  }
-
-  closeModal() { if (this.saving()) return; this.modalOpen.set(false); }
-
-  submitForm() {
-    if (!this.form.title.trim()) { this.formError.set('Title is required.');           return; }
-    if (!this.form.start_Time)   { this.formError.set('Start date/time is required.'); return; }
-    if (!this.form.end_Time)     { this.formError.set('End date/time is required.');   return; }
-    if (!this.form.categoryId)   { this.formError.set('Please select a category.');    return; }
-
-    const userId = this.auth.getUserProfile()?.id;
-    if (!userId) { this.formError.set('Session expired — please log in again.'); return; }
-
-    this.formError.set(null); this.saving.set(true);
-    const maxAtt = this.form.maxAttendees ? parseInt(this.form.maxAttendees, 10) : null;
-
-    if (this.modalMode() === 'create') {
-      const dto: CreateMeetupDto = {
-        title:                this.form.title.trim(),
-        start_Time:           new Date(this.form.start_Time).toISOString(),
-        end_Time:             new Date(this.form.end_Time).toISOString(),
-        max_Participants:     maxAtt && !isNaN(maxAtt) ? maxAtt : null,
-        description:          this.form.description.trim() || null,
-        city:                 this.form.city.trim() || null,
-        region:               this.form.region.trim() || null,
-        street:               this.form.street.trim() || null,
-        nameOfPlace:          this.form.nameOfPlace.trim() || null,
-        online_url:           this.form.online_url.trim() || null,
-        meetup_img_url:       this.form.meetup_img_url.trim() || null,
-        meetup_location_type: this.form.locationType,
-        categoryId:           this.form.categoryId!,
-        managerId:            userId,
-      };
-      this.svc.createMeetup(dto).pipe(
-        // On error: set formError, clear saving, return null
-        catchError(err => {
-          this.formError.set(err?.error?.message ?? 'Failed to create meetup.');
-          this.saving.set(false);
-          return of(null);
-        }),
-        takeUntil(this.d$),
-      ).subscribe(res => {
-        // res === null  → error handled above
-        // res === true  → success
-        if (!res) return;
-        this.saving.set(false);
-        this.modalOpen.set(false);
-        this.showToast('Meetup created! 🎉', 'success');
-        this.load();
-      });
-
-    } else {
-      const dto: UpdateMeetupDto = {
-        title:                this.form.title.trim(),
-        start_Time:           new Date(this.form.start_Time).toISOString(),
-        end_Time:             new Date(this.form.end_Time).toISOString(),
-        maxAttendees:         maxAtt && !isNaN(maxAtt) ? maxAtt : null,
-        description:          this.form.description.trim() || null,
-        city:                 this.form.city.trim() || null,
-        region:               this.form.region.trim() || null,
-        street:               this.form.street.trim() || null,
-        nameOfPlace:          this.form.nameOfPlace.trim() || null,
-        online_url:           this.form.online_url.trim() || null,
-        meetup_img_url:       this.form.meetup_img_url.trim() || null,
-        meetup_location_type: this.form.locationType,
-        categoryId:           this.form.categoryId!,
-        managerId:            userId,
-      };
-      this.svc.updateMeetup(this.editTarget()!.id, dto).pipe(
-        catchError(err => {
-          this.formError.set(err?.error?.message ?? 'Failed to update meetup.');
-          this.saving.set(false);
-          return of(null);
-        }),
-        takeUntil(this.d$),
-      ).subscribe(res => {
-        if (!res) return;
-        this.saving.set(false);
-        this.modalOpen.set(false);
-        this.showToast('Meetup updated ✓', 'success');
-        this.load();
-      });
-    }
-  }
-
-  confirmDelete(m: Meetup) { this.deleteTarget.set(m); }
-
-  doDelete() {
+  executeDelete(): void {
     const m = this.deleteTarget();
     if (!m) return;
+
     this.deletingId.set(m.id);
+
     this.svc.deleteMeetup(m.id).pipe(
       catchError(err => {
-        this.showToast(err?.error?.message ?? 'Failed to delete.', 'error');
+        this.showToast(err?.error?.message ?? 'Failed to delete. Please try again.', 'error');
         this.deletingId.set(null);
         this.deleteTarget.set(null);
         return of(null);
       }),
       takeUntil(this.d$),
     ).subscribe(res => {
-      this.deletingId.set(null);
-      this.deleteTarget.set(null);
       if (!res) return;
       this.meetups.update(list => list.filter(x => x.id !== m.id));
-      this.showToast(`"${m.title}" deleted.`, 'success');
+      this.deletingId.set(null);
+      this.deleteTarget.set(null);
+      this.showToast(`"${m.title}" has been deleted.`, 'success');
     });
+  }
+
+  // ── Edit flow ─────────────────────────────────────────────────────────────
+
+  openEdit(m: Meetup): void {
+    this.editForm = {
+      title:                m.title ?? '',
+      description:          m.description ?? '',
+      start_Time:           toDatetimeLocal(m.start_Time),
+      end_Time:             toDatetimeLocal(m.end_Time),
+      maxAttendees:         m.maxAttendees != null ? String(m.maxAttendees) : '',
+      city:                 m.city ?? '',
+      region:               m.region ?? '',
+      street:               m.street ?? '',
+      nameOfPlace:          m.nameOfPlace ?? '',
+      online_url:           m.online_url ?? '',
+      meetup_img_url:       m.meetup_img_url ?? '',
+      meetup_location_type: m.meetup_location_type,
+      categoryId:           m.categoryId,
+    };
+    this.editError.set(null);
+    this.editTarget.set(m);
+  }
+
+  cancelEdit(): void {
+    this.editTarget.set(null);
+  }
+
+  saveEdit(): void {
+    const m = this.editTarget();
+    if (!m) return;
+
+    if (!this.editForm.title.trim()) {
+      this.editError.set('Title is required.');
+      return;
+    }
+    if (!this.editForm.start_Time || !this.editForm.end_Time) {
+      this.editError.set('Start and end times are required.');
+      return;
+    }
+
+    const dto: UpdateMeetupDto = {
+      title:                this.editForm.title.trim(),
+      description:          this.editForm.description || null,
+      start_Time:           new Date(this.editForm.start_Time).toISOString(),
+      end_Time:             new Date(this.editForm.end_Time).toISOString(),
+      maxAttendees:         this.editForm.maxAttendees ? Number(this.editForm.maxAttendees) : null,
+      city:                 this.editForm.city || null,
+      region:               this.editForm.region || null,
+      street:               this.editForm.street || null,
+      nameOfPlace:          this.editForm.nameOfPlace || null,
+      online_url:           this.editForm.online_url || null,
+      meetup_img_url:       this.editForm.meetup_img_url || null,
+      meetup_location_type: this.editForm.meetup_location_type,
+      categoryId:           this.editForm.categoryId,
+      managerId:            m.managerId,
+    };
+
+    this.saving.set(true);
+    this.editError.set(null);
+
+    this.svc.updateMeetup(m.id, dto).pipe(
+      catchError(err => {
+        this.editError.set(err?.error?.message ?? 'Failed to save. Please try again.');
+        this.saving.set(false);
+        return of(null);
+      }),
+      takeUntil(this.d$),
+    ).subscribe(res => {
+      if (!res) return;
+
+      // Patch the meetup in-place so the list updates without a full reload
+      this.meetups.update(list =>
+        list.map(x => x.id !== m.id ? x : {
+          ...x,
+          title:                dto.title,
+          description:          dto.description ?? null,
+          start_Time:           dto.start_Time,
+          end_Time:             dto.end_Time,
+          maxAttendees:         dto.maxAttendees ?? null,
+          city:                 dto.city ?? null,
+          region:               dto.region ?? null,
+          street:               dto.street ?? null,
+          nameOfPlace:          dto.nameOfPlace ?? null,
+          online_url:           dto.online_url ?? null,
+          meetup_img_url:       dto.meetup_img_url ?? null,
+          meetup_location_type: dto.meetup_location_type,
+        }),
+      );
+
+      this.saving.set(false);
+      this.editTarget.set(null);
+      this.showToast(`"${dto.title}" updated successfully! ✏️`, 'success');
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  private blankForm(): EditForm {
+    return {
+      title: '', description: '', start_Time: '', end_Time: '',
+      maxAttendees: '', city: '', region: '', street: '',
+      nameOfPlace: '', online_url: '', meetup_img_url: '',
+      meetup_location_type: MeetupLocationType.Offline, categoryId: 0,
+    };
   }
 
   private showToast(msg: string, type: 'success' | 'error') {
     this.toast.set({ msg, type });
     if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 3200);
+    this.toastTimer = setTimeout(() => this.toast.set(null), 3500);
   }
 }
